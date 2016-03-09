@@ -16,10 +16,11 @@ public class main {
 
 	public static void main(String[] args) throws Exception {
 		
-		JSONArray param = new JSONArray();
-		ImageIcon i = new ImageIcon(new URL("avatar.jpg"));
+		JSONArray param = new JSONArray(new int[]{2,3});
+		ImageIcon i = new ImageIcon("avatar.jpg");
 		
 		ReponseServeur r = RequeteServeur.envoyerRequete(NIVEAU1.AVATAR, "ajouter", param);
+		System.out.println(r);
 		
 	}
 

@@ -20,19 +20,33 @@ public class ReponseServeur {
 		for (String ligne : reponse){
 			json = json+ligne+"\n";
 		}
-		System.out.println(json);
 		this.corps = new JSONObject(json);
 		this.exception = this.corps.getBoolean("exception");
 		this.corps.remove("exception");
 	}
 	
-	
+	protected ReponseServeur() {
+		this.exception = true;
+		this.corps = new JSONObject();
+		try {
+			this.corps.put("error", "Le serveur a rencontré un problème");
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
 	public boolean estOK() {
 		return (this.exception)?false:true;
 	}
 
 	public JSONObject getCorps() {
 		return this.corps;
+	}
+
+	@Override
+	public String toString() {
+		return ((this.exception)?"[!] Exception levée : ":"")+corps.toString();
 	}
 	
 	
