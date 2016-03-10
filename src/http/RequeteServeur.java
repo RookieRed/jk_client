@@ -7,6 +7,11 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
+import java.net.Socket;
+import java.net.SocketAddress;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -19,26 +24,33 @@ import org.json.JSONObject;
 
 public abstract class RequeteServeur {
 	
-	private static final String CIBLE = "localhost/jk/api.php";
+	private static final String cible		= "/jk/api.php";
+	private static final String serveur		= "localhost";
+	private static final int portServeurImg = 10000;
+	
 	private static URL url;
 	private static HttpURLConnection connection = null;
 	public static enum NIVEAU1 {
-		Avatar,
-		JeanKevin
+		JeanKevin,
+		Amitie,
 	}
 	public static enum NIVEAU2 {
+		acceper,
 		ajouter,
-		supprimer,
-		existe,
-		selectionner,
+		ajouterAvatar,
 		definirPhotoProfile,
+		estEffective,
+		existe,
 		preinscrire,
+		selectionner,
+		selectionnerAmis,
+		supprimer,
 	}
 	
 	
-	private static void construireRequete(NIVEAU1 niv1, NIVEAU2 req, JSONArray params)
+	private static void envoyerRequete(NIVEAU1 niv1, NIVEAU2 req, JSONArray params) 
 			throws JSONException, IOException{
-		
+
 		//Création de la reqête JSON qui sera envoyé dans POST['JSON']
 		JSONObject requete = new JSONObject();
 		requete.put("niv_1", niv1);
@@ -51,7 +63,7 @@ public abstract class RequeteServeur {
 		}
 		
 		//Lancement de la connexion
-		url = new URL("http://"+CIBLE);
+		url = new URL("http://"+serveur+cible);
 		connection = (HttpURLConnection) url.openConnection();
 		
 		//Création de la requête post
@@ -59,7 +71,7 @@ public abstract class RequeteServeur {
 		connection.setRequestMethod("POST");
 		connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 		connection.setRequestProperty("Content-Length",
-				""+(CIBLE.length()+post.toString().length()));
+				""+((serveur+cible).length()+post.toString().length()));
 		connection.setUseCaches(false);
 		connection.setDoOutput(true);
 		
@@ -68,14 +80,14 @@ public abstract class RequeteServeur {
 		BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, Charset.forName("utf-8")));
 		writer.write(post);
 		writer.flush();
-		
 	}
 	
-	public static ReponseServeur envoyerRequete(NIVEAU1 niv1, NIVEAU2 req, JSONArray params){
+	public static ReponseServeur executerRequete(NIVEAU1 niv1, NIVEAU2 req, JSONArray params){
 		
 		try {
-			//Envoie de la requête
-			construireRequete(niv1, req, params);
+			
+			//Envoie de la requete
+			envoyerRequete(niv1, req, params); 
 			
 			//Lecture de la réponse serveur
 			BufferedReader br = new BufferedReader(new InputStreamReader(
@@ -106,14 +118,17 @@ public abstract class RequeteServeur {
 	public static ReponseServeur transfererImage(ImageIcon img, JSONArray params){
 		
 		try {
-			construireRequete(NIVEAU1.Avatar, NIVEAU2.definirPhotoProfile, params);
+			//On lance une requete pour récupérer les infos du nouveau socket
+			envoyerRequete(NIVEAU1.JeanKevin, NIVEAU2.ajouterAvatar, params);
+			
+			//S'il n'y a pas eu de problèmes on lance la connexion avec le nouveau socket
+				System.out.println("Tentative de connexion");
+				Socket s = new Socket(serveur, portServeurImg);
+				System.out.println("Connexion réussie : "+s.isConnected());
+				s.close();
+			
 		}
-		//Si la réponse du serveur n'est pas correcte on l'affiche et on retourne une Reponse erreur
-		catch (JSONException e) {
-			return new ReponseServeur();
-		}
-		//Autres exceptions
-		catch (IOException e) {
+		catch (IOException | JSONException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}

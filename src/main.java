@@ -12,7 +12,7 @@ public class main {
 		JSONArray param = new JSONArray(new String[]{"jk1"});
 		//ImageIcon i = new ImageIcon(new URL("avatar.jpg"));
 		
-		ReponseServeur r = RequeteServeur.envoyerRequete(NIVEAU1.JeanKevin, NIVEAU2.existe, param);
+		ReponseServeur r = RequeteServeur.transfererImage(null, param);
 		System.out.println(r);
 		
 	}
