@@ -6,9 +6,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 
 import org.json.JSONArray;
@@ -50,16 +50,16 @@ public abstract class RequeteServeur {
 			
 			//Envoie du POST
 			OutputStream os = connection.getOutputStream();
-			BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "utf-8"));
+			BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, Charset.forName("utf-8")));
 			writer.write(post);
 			writer.flush();
 			
 			//Lecture de la réponse serveur
-			BufferedReader bf = new BufferedReader(new InputStreamReader(
-					connection.getInputStream()));
+			BufferedReader br = new BufferedReader(new InputStreamReader(
+					connection.getInputStream(), "utf-8"));
 			ArrayList<String> repServ = new ArrayList<String>();
 			String ligne;
-			while((ligne = bf.readLine())!= null){
+			while((ligne = br.readLine())!= null){
 				repServ.add(ligne);
 			}
 			
@@ -67,12 +67,17 @@ public abstract class RequeteServeur {
 			ReponseServeur r = new ReponseServeur(repServ);
 			return r;
 			
-		} catch (IOException | JSONException e) {
+		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return new ReponseServeur();
+		}
 		
-		//Si une exception occure on retourne null
+		//Si une exception occure on retourne une réponse par défaut
 		return null;
 	}
 	
