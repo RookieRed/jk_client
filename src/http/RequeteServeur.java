@@ -11,6 +11,8 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 
+import javax.swing.ImageIcon;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -21,38 +23,59 @@ public abstract class RequeteServeur {
 	private static URL url;
 	private static HttpURLConnection connection = null;
 	public static enum NIVEAU1 {
-		TEST,
-		AVATAR
+		Avatar,
+		JeanKevin
+	}
+	public static enum NIVEAU2 {
+		ajouter,
+		supprimer,
+		existe,
+		selectionner,
+		definirPhotoProfile,
+		preinscrire,
 	}
 	
 	
-	public static ReponseServeur envoyerRequete(NIVEAU1 niv1, String req, JSONArray params){
-		try {
-			
-			//Création de la reqête JSON qui sera envoyé dans POST['JSON']
-			JSONObject requete = new JSONObject();
-			requete.put("niv_1", niv1);
-			requete.put("niv_2", req);
+	private static void construireRequete(NIVEAU1 niv1, NIVEAU2 req, JSONArray params)
+			throws JSONException, IOException{
+		
+		//Création de la reqête JSON qui sera envoyé dans POST['JSON']
+		JSONObject requete = new JSONObject();
+		requete.put("niv_1", niv1);
+		requete.put("niv_2", req);
+		if(params != null){
 			requete.put("param", params);
-			
-			//Lancement de la connexion
-			url = new URL("http://"+CIBLE);
-			connection = (HttpURLConnection) url.openConnection();
-			
-			//Création de la requête post
-			String post = "JSON="+requete.toString();
-			connection.setRequestMethod("POST");
-			connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-			connection.setRequestProperty("Content-Length",
-					""+(CIBLE.length()+post.toString().length()));
-			connection.setUseCaches(false);
-			connection.setDoOutput(true);
-			
-			//Envoie du POST
-			OutputStream os = connection.getOutputStream();
-			BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, Charset.forName("utf-8")));
-			writer.write(post);
-			writer.flush();
+		}
+		else {
+			requete.put("param", new JSONArray());
+		}
+		
+		//Lancement de la connexion
+		url = new URL("http://"+CIBLE);
+		connection = (HttpURLConnection) url.openConnection();
+		
+		//Création de la requête post
+		String post = "JSON="+requete.toString();
+		connection.setRequestMethod("POST");
+		connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+		connection.setRequestProperty("Content-Length",
+				""+(CIBLE.length()+post.toString().length()));
+		connection.setUseCaches(false);
+		connection.setDoOutput(true);
+		
+		//Envoie du POST
+		OutputStream os = connection.getOutputStream();
+		BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, Charset.forName("utf-8")));
+		writer.write(post);
+		writer.flush();
+		
+	}
+	
+	public static ReponseServeur envoyerRequete(NIVEAU1 niv1, NIVEAU2 req, JSONArray params){
+		
+		try {
+			//Envoie de la requête
+			construireRequete(niv1, req, params);
 			
 			//Lecture de la réponse serveur
 			BufferedReader br = new BufferedReader(new InputStreamReader(
@@ -60,6 +83,7 @@ public abstract class RequeteServeur {
 			ArrayList<String> repServ = new ArrayList<String>();
 			String ligne;
 			while((ligne = br.readLine())!= null){
+				System.out.println(ligne);
 				repServ.add(ligne);
 			}
 			
@@ -72,12 +96,28 @@ public abstract class RequeteServeur {
 			e.printStackTrace();
 		}
 		catch (JSONException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 			return new ReponseServeur();
 		}
 		
 		//Si une exception occure on retourne une réponse par défaut
+		return null;
+	}
+	
+	public static ReponseServeur transfererImage(ImageIcon img, JSONArray params){
+		
+		try {
+			construireRequete(NIVEAU1.Avatar, NIVEAU2.definirPhotoProfile, params);
+		}
+		//Si la réponse du serveur n'est pas correcte on l'affiche et on retourne une Reponse erreur
+		catch (JSONException e) {
+			return new ReponseServeur();
+		}
+		//Autres exceptions
+		catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 		return null;
 	}
 	
