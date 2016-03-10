@@ -17,7 +17,7 @@ public class main {
 	public static void main(String[] args) throws Exception {
 		
 		JSONArray param = new JSONArray();
-		ImageIcon i = new ImageIcon(new URL("avatar.jpg"));
+		//ImageIcon i = new ImageIcon(new URL("avatar.jpg"));
 		
 		ReponseServeur r = RequeteServeur.envoyerRequete(NIVEAU1.AVATAR, "ajouter", param);
 		
