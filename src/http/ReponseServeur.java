@@ -1,5 +1,6 @@
 package http;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 
 import org.json.JSONException;
@@ -10,8 +11,9 @@ import org.json.JSONObject;
  * @author RookieRed
  *
  */
-public class ReponseServeur {
+public class ReponseServeur implements Serializable {
 	
+	private static final long serialVersionUID = -4070470035924528165L;
 	private boolean exception;
 	private JSONObject corps;
 	
@@ -25,14 +27,13 @@ public class ReponseServeur {
 		this.corps.remove("exception");
 	}
 	
-	protected ReponseServeur() {
-		this.exception = true;
+	protected ReponseServeur(boolean exception) {
+		this.exception = exception;
 		this.corps = new JSONObject();
-		try {
-			this.corps.put("error", "Le serveur a rencontré un problème");
-		} catch (JSONException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		if(exception){
+			try {
+				this.corps.put("error", "Le serveur a rencontré un problème");
+			} catch (JSONException e) {}
 		}
 	}
 

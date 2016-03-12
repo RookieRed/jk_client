@@ -1,4 +1,6 @@
 
+import java.io.File;
+
 import org.json.JSONArray;
 import http.ReponseServeur;
 import http.RequeteServeur;
@@ -10,9 +12,9 @@ public class main {
 	public static void main(String[] args) throws Exception {
 
 		JSONArray param = new JSONArray(new String[]{"jk1"});
-		//ImageIcon i = new ImageIcon(new URL("avatar.jpg"));
+		File img = new File("avatar.jpg");
 		
-		ReponseServeur r = RequeteServeur.transfererImage(null, param);
+		ReponseServeur r = RequeteServeur.transfererImage(img, param);
 		System.out.println(r);
 		
 	}
