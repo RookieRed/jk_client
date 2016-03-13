@@ -21,7 +21,6 @@ import java.util.Arrays;
 import javax.activation.MimetypesFileTypeMap;
 
 import org.apache.commons.io.IOUtils;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -29,7 +28,7 @@ import org.json.JSONObject;
 
 /**
  * Classe permettant la communication entre l'application et les serveurs.</br>
- * Toutes les méthodes sont accessible en static, il n'existe pas 
+ * Toutes les méthodes sont accessible en static, il n'existe pas d'instance de la classe
  * @author JK
  *
  */
@@ -46,14 +45,13 @@ public abstract class RequeteServeur {
 	private static HttpURLConnection 	connection	= null;
 	
 	//Enumérations des deux niveaux de requête
-	public static enum NIVEAU1 {
+	public static enum Niveau1 {
 		JeanKevin,
 		Amitie,
 	}
-	public static enum NIVEAU2 {
+	public static enum Niveau2 {
 		accepter,
 		ajouter,
-		ajouterAvatar,
 		definirPhotoProfile,
 		estEffective,
 		existe,
@@ -62,30 +60,21 @@ public abstract class RequeteServeur {
 		selectionnerAmis,
 		supprimer,
 	}
+	public static enum NivImg {
+		ajouterAvatar,
+		ajouterCarte
+	}
 	
 	
 	
 	/**
 	 * Fonction permettant d'envoyer une requête HTTP formatée pour le serveur
-	 * @param niv1 Correspond à la classe visée
-	 * @param req correspond à la méthode de classe correspondante
-	 * @param params les paramètres de la méthode dans un tableau JSON
+	 * @param requete la requete sous format objet JSON à envoyer au serveur
 	 * @throws JSONException
 	 * @throws IOException
 	 */
-	public static void envoyerRequete(NIVEAU1 niv1, NIVEAU2 req, JSONArray params) 
+	private static void envoyerRequete(JSONObject requete) 
 			throws JSONException, IOException{
-
-		//Création de la reqête JSON qui sera envoyé dans POST['JSON']
-		JSONObject requete = new JSONObject();
-		requete.put("niv_1", niv1);
-		requete.put("niv_2", req);
-		if(params != null){
-			requete.put("param", params);
-		}
-		else {
-			requete.put("param", new JSONArray());
-		}
 		
 		//Lancement de la connexion
 		url = new URL("http://"+serveur+cible);
@@ -109,12 +98,31 @@ public abstract class RequeteServeur {
 	
 	
 	
-	public static ReponseServeur executerRequete(NIVEAU1 niv1, NIVEAU2 req, JSONArray params){
+	
+	/**
+	 * Permet d'envoyer une requête au serveur qui l'exécutera et retournera une réponse
+	 * @param niv1 correspond à la classe serveur d'où sera appelé le niveau 2
+	 * @param req correspond au no de la méthode à appeler
+	 * @param params correspon aux paramètres de cette fonction
+	 * @return la réponse du serveur ou null en cas de problèmes
+	 */
+	public static ReponseServeur executerRequete(Niveau1 niv1, Niveau2 niv2, JSONArray params){
 		
 		try {
+
+			//Création de la reqête JSON qui sera envoyé dans POST['JSON']
+			JSONObject requete = new JSONObject();
+			requete.put("niv_1", niv1);
+			requete.put("niv_2", niv2);
+			if(params != null){
+				requete.put("param", params);
+			}
+			else {
+				requete.put("param", new JSONArray());
+			}
 			
 			//Envoie de la requete
-			envoyerRequete(niv1, req, params); 
+			envoyerRequete(requete); 
 			
 			//Lecture de la réponse serveur
 			BufferedReader br = new BufferedReader(new InputStreamReader(
@@ -144,7 +152,17 @@ public abstract class RequeteServeur {
 	
 	
 	
-	public static ReponseServeur transfererImage(File img, JSONArray params)
+	
+	/**
+	 * Permet de transférer une image au serveur. Cette image peut être un nouvel avatar
+	 * de Jean-Kévin ou bien une nouvelle carte pour un lieu
+	 * @param img L'handler vers le ficier image à transférer
+	 * @param niv le niveau 2 de la requête
+	 * @param params les paramètres correspondant à la fonction serveur appelée
+	 * @return la réponse du serveur ou bien null en cas d'erreur
+	 * @throws IllegalArgumentException si le fichier en paramètre n'est aps une image
+	 */
+	public static ReponseServeur transfererImage(File img, NivImg niv, JSONArray params)
 			throws IllegalArgumentException{
 		
 		//Vérification du fichier
@@ -156,66 +174,83 @@ public abstract class RequeteServeur {
 		
 		//Traitements de la communication
 		try {
+
+			//Création de la reqête JSON qui sera envoyé dans POST['JSON']
+			JSONObject requete = new JSONObject();
+			requete.put("niv_1", "Images");
+			requete.put("niv_2", niv);
+			if(params != null){
+				requete.put("param", params);
+			}
+			else {
+				requete.put("param", new JSONArray());
+			}
 			
 			//Envoie de la requête pour ajouter un avatar à JK
 			final ReponseServeur r = new ReponseServeur(false);
 			params.put(img.getName());
-			Thread actuel = Thread.currentThread();
+			Thread principal = Thread.currentThread();
 			Thread envoie;
-			synchronized (actuel) {
-				
-				//Lacement du thread envoie
+			
+			//envoie de la requête
+			envoyerRequete(requete);
+			
+			synchronized (principal) {
+				//Lacement du thread pour lire la réponse
 				envoie = new Thread(new Runnable() {
 					@Override
 					public void run() {
 						try {
-							//envoie de la requête
-							envoyerRequete(NIVEAU1.JeanKevin, NIVEAU2.ajouterAvatar, params);
-							//On notifie le thread parent que la requête a été envoyée
-							synchronized (actuel) {
-								actuel.notify();
-							}
 							//Lecture de la réponse serveur
-							BufferedReader br = new BufferedReader(new InputStreamReader(
-									connection.getInputStream(), "utf-8"));
+							BufferedReader br = new BufferedReader(
+									new InputStreamReader(connection.getInputStream(), "utf-8"));
 							String ligne;
-							while((ligne = br.readLine())!= null){
-								System.out.println(ligne);
+							while ((ligne = br.readLine()) != null) {
+								System.out.println("- " + ligne);
 							}
 							r.getCorps().put("reponseRequete", ligne);
+							synchronized (principal) {
+								principal.notify();
+							}
 						} catch (JSONException | IOException e) {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
 					}
 				});
-				
+			
 				envoie.start();
-				actuel.wait();
-			}
-			//Traitement de l'image
-			byte[] buffer = IOUtils.toByteArray(new FileInputStream(img));
-			
-			//S'il n'y a pas eu de problèmes on lance la connexion avec le nouveau socket
-			System.out.println("Tentative de connexion");
-			Socket s = new Socket(serveur, portServeurImg);
-			
-			//Si la connexion a été acceptée
-			if(s.isConnected()){
-				//Envoie de l'image
-				s.setSendBufferSize(tailleBfr);
-				OutputStream os = s.getOutputStream();
-				os.write(buffer);
+					
+				//Traitement de l'image
+				byte[] buffer = IOUtils.toByteArray(new FileInputStream(img));
 				
-				//Lecture de la réponse
-				InputStream ir = s.getInputStream();
-				byte b[] = new byte[tailleBfr];
-				int rel = ir.read(b);
-				r.getCorps().put("transfert", new String(Arrays.copyOf(b, rel)));
+				//S'il n'y a pas eu de problèmes on lance la connexion avec le nouveau socket
+				System.out.println("Tentative de connexion");
+				Socket s = new Socket(serveur, portServeurImg);
+				
+				//Si la connexion a été acceptée
+				if(s.isConnected()){
+					//Envoie de l'image
+					System.out.println("Envoie de l'image");
+					s.setSendBufferSize(tailleBfr);
+					OutputStream os = s.getOutputStream();
+					os.write(buffer);
+					
+	//				//Lecture de la réponse
+	//				System.out.println("Image envoyé, lecture de la réponse");
+	//				InputStream is = s.getInputStream();
+	//				byte b[] = new byte[tailleBfr];
+	//				int rel = is.read(b);
+	//				System.out.println("Reception : "+new String(Arrays.copyOf(b, rel)));
+	//				r.getCorps().put("transfert", ( (new String(Arrays.copyOf(b, rel))).equals("1"))?true:false);
+				}
+				System.out.println("Fermeture socket");
+				s.close();
+				principal.wait();
+				System.out.println("Arret du thread");
+				envoie.interrupt();
+				return r;
 			}
-			s.close();
-			envoie.interrupt();
-			return r;
 		}
 		catch (IOException | InterruptedException e) {
 			// TODO Auto-generated catch block
