@@ -32,7 +32,7 @@ public class ReponseServeur implements Serializable {
 		this.corps = new JSONObject();
 		if(exception){
 			try {
-				this.corps.put("error", "Le serveur a rencontré un problème");
+				this.corps.put("erreur", "Le serveur a rencontré un problème");
 			} catch (JSONException e) {}
 		}
 	}

@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -111,12 +112,12 @@ public abstract class RequeteServeur {
 			String ligne;
 			while((ligne = br.readLine())!= null){
 				repServ.add(ligne);
+				System.out.println(ligne);
 			}
 			return repServ;
 		}
 		return null;
 	}
-	
 	
 	
 	
@@ -233,7 +234,7 @@ public abstract class RequeteServeur {
 				//Traitement de l'image
 				byte[] buffer = IOUtils.toByteArray(new FileInputStream(img));
 				
-				//S'il n'y a pas eu de problèmes on lance la connexion avec le nouveau socket
+				//Lancement de la connexion avec un nouveau socket
 				Socket s = new Socket(serveur, portServeurImg);
 				
 				//Si la connexion a été acceptée on envoie l'image
@@ -271,10 +272,10 @@ public abstract class RequeteServeur {
 	 * @param img l'handler qui donnera accès à l'image reçue
 	 * @return un objet RéponseServeur ou null en cas d'erreur
 	 */
-	public static ReponseServeur recevoirImage(File img, NivImg niv, JSONArray params){
-
+	public static File recevoirImage(NivImg niv, String path, JSONArray params){
+		
 		try {
-			
+			File img = new File(path);
 			//Envoie de la requete
 			JSONObject req = new JSONObject();
 			req.put("niv_1", "Images");
@@ -282,25 +283,29 @@ public abstract class RequeteServeur {
 			req.put("param", (params==null)?new JSONArray():params);
 			envoyerRequete(req);
 			
-			//Lecture de la réponse
-			ReponseServeur r = new ReponseServeur(lireReponse());
-			
 			//Lancement de la connexion
-			Socket s = new Socket(serveur, portServeurImg);
-			if(s.isConnected()){
-				//On efface tout
-				FileUtils.writeByteArrayToFile(img, null, false);
-				
-				//Reception de l'image
-				InputStream is = s.getInputStream();
-				byte[] b = new byte[tailleBfr];
-				int longueur = 0;
-				while((longueur = is.read(b)) != -1){
-					FileUtils.writeByteArrayToFile(img, Arrays.copyOf(b, longueur), true);
+			try {
+				Socket s = new Socket(serveur, portServeurImg);
+				if(s.isConnected()){
+					
+					//Reception de l'image
+					InputStream is = s.getInputStream();
+					byte[] b = new byte[tailleBfr];
+					System.out.println("Lecture des données");
+					FileOutputStream fos = new FileOutputStream(img);
+					while(is.read(b) != -1){
+						fos.write(b);
+					}
+					fos.close();
+					System.out.println("Fin de lecture");
 				}
+				s.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+				return null;
 			}
-			s.close();
-			return r;
+			lireReponse();
+			return img;
 			
 		} catch (JSONException | IOException e) {
 			// TODO Auto-generated catch block
