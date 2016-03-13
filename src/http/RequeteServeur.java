@@ -9,17 +9,18 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-
+import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Array;
 import java.net.HttpURLConnection;
 import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.Charset;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 
 import javax.activation.MimetypesFileTypeMap;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -61,14 +62,14 @@ public abstract class RequeteServeur {
 		supprimer,
 	}
 	public static enum NivImg {
-		ajouterAvatar,
-		ajouterCarte
+		Avatar,
+		Carte,
 	}
 	
 	
 	
 	/**
-	 * Fonction permettant d'envoyer une requête HTTP formatée pour le serveur
+	 * Permet d'envoyer une requête HTTP formatée pour le serveur
 	 * @param requete la requete sous format objet JSON à envoyer au serveur
 	 * @throws JSONException
 	 * @throws IOException
@@ -96,15 +97,35 @@ public abstract class RequeteServeur {
 		writer.flush();
 	}
 	
+	/**
+	 * Lit la réponse du serveur et l'enregistre dans une liste de string
+	 * @return l'ArrayList contenant toutes les lignes renvoyée par le serveur
+	 * @throws IOException
+	 */
+	private static ArrayList<String> lireReponse() throws IOException {
+		
+		if(connection != null){
+			BufferedReader br = new BufferedReader(new InputStreamReader(
+				connection.getInputStream(), "utf-8"));
+			ArrayList<String> repServ = new ArrayList<String>();
+			String ligne;
+			while((ligne = br.readLine())!= null){
+				repServ.add(ligne);
+			}
+			return repServ;
+		}
+		return null;
+	}
+	
 	
 	
 	
 	/**
 	 * Permet d'envoyer une requête au serveur qui l'exécutera et retournera une réponse
-	 * @param niv1 correspond à la classe serveur d'où sera appelé le niveau 2
-	 * @param req correspond au no de la méthode à appeler
+	 * @param niv1 correspond à la classe dont on veut appeler la méthode (niveau 2)
+	 * @param req correspond au nom de la méthode à appeler
 	 * @param params correspon aux paramètres de cette fonction
-	 * @return la réponse du serveur ou null en cas de problèmes
+	 * @return la réponse du serveur ou <b>null</b> en cas de problèmes
 	 */
 	public static ReponseServeur executerRequete(Niveau1 niv1, Niveau2 niv2, JSONArray params){
 		
@@ -124,22 +145,11 @@ public abstract class RequeteServeur {
 			//Envoie de la requete
 			envoyerRequete(requete); 
 			
-			//Lecture de la réponse serveur
-			BufferedReader br = new BufferedReader(new InputStreamReader(
-					connection.getInputStream(), "utf-8"));
-			ArrayList<String> repServ = new ArrayList<String>();
-			String ligne;
-			while((ligne = br.readLine())!= null){
-				System.out.println(ligne);
-				repServ.add(ligne);
-			}
-			
 			//Création de l'objet de réponse
-			ReponseServeur r = new ReponseServeur(repServ);
+			ReponseServeur r = new ReponseServeur(lireReponse());
 			return r;
 			
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		catch (JSONException e) {
@@ -156,11 +166,11 @@ public abstract class RequeteServeur {
 	/**
 	 * Permet de transférer une image au serveur. Cette image peut être un nouvel avatar
 	 * de Jean-Kévin ou bien une nouvelle carte pour un lieu
-	 * @param img L'handler vers le ficier image à transférer
-	 * @param niv le niveau 2 de la requête
+	 * @param img L'handler vers le fichier image à transférer
+	 * @param niv peut prendre la valeur "Carte" (ajoute une carte à un lieu) ou "Avatar" (ajoute un avatar à JK)
 	 * @param params les paramètres correspondant à la fonction serveur appelée
 	 * @return la réponse du serveur ou bien null en cas d'erreur
-	 * @throws IllegalArgumentException si le fichier en paramètre n'est aps une image
+	 * @throws IllegalArgumentException si le fichier en paramètre n'est pas une image
 	 */
 	public static ReponseServeur transfererImage(File img, NivImg niv, JSONArray params)
 			throws IllegalArgumentException{
@@ -178,7 +188,7 @@ public abstract class RequeteServeur {
 			//Création de la reqête JSON qui sera envoyé dans POST['JSON']
 			JSONObject requete = new JSONObject();
 			requete.put("niv_1", "Images");
-			requete.put("niv_2", niv);
+			requete.put("niv_2", "ajouter"+niv);
 			if(params != null){
 				requete.put("param", params);
 			}
@@ -202,62 +212,100 @@ public abstract class RequeteServeur {
 					public void run() {
 						try {
 							//Lecture de la réponse serveur
-							BufferedReader br = new BufferedReader(
-									new InputStreamReader(connection.getInputStream(), "utf-8"));
-							String ligne;
-							while ((ligne = br.readLine()) != null) {
-								System.out.println("- " + ligne);
-							}
-							r.getCorps().put("reponseRequete", ligne);
+							ReponseServeur rep = new ReponseServeur(lireReponse());
+							r.getCorps().put("reponse", rep.getCorps());
+							r.setException(!rep.estOK());
+						}
+						catch (IOException e) { e.printStackTrace(); }
+						catch (JSONException e){
+							r.setException(true);
+							try { r.getCorps().put("erreur", "La réponse n'est pas au format JSON"); }
+							catch (JSONException e1) {}
+						} finally{
 							synchronized (principal) {
 								principal.notify();
 							}
-						} catch (JSONException | IOException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
 						}
 					}
 				});
-			
 				envoie.start();
 					
 				//Traitement de l'image
 				byte[] buffer = IOUtils.toByteArray(new FileInputStream(img));
 				
 				//S'il n'y a pas eu de problèmes on lance la connexion avec le nouveau socket
-				System.out.println("Tentative de connexion");
 				Socket s = new Socket(serveur, portServeurImg);
 				
-				//Si la connexion a été acceptée
+				//Si la connexion a été acceptée on envoie l'image
 				if(s.isConnected()){
 					//Envoie de l'image
-					System.out.println("Envoie de l'image");
 					s.setSendBufferSize(tailleBfr);
 					OutputStream os = s.getOutputStream();
 					os.write(buffer);
-					
-	//				//Lecture de la réponse
-	//				System.out.println("Image envoyé, lecture de la réponse");
-	//				InputStream is = s.getInputStream();
-	//				byte b[] = new byte[tailleBfr];
-	//				int rel = is.read(b);
-	//				System.out.println("Reception : "+new String(Arrays.copyOf(b, rel)));
-	//				r.getCorps().put("transfert", ( (new String(Arrays.copyOf(b, rel))).equals("1"))?true:false);
 				}
-				System.out.println("Fermeture socket");
+				else{
+					s.close();
+					r.setException(true);
+					r.getCorps().put("erreur", "Connection refusée");
+					return r;
+				}
+				
+				//On ferme le socket on attend la synchronisation avec le thread d'envoie et on retourne la réponse
 				s.close();
 				principal.wait();
-				System.out.println("Arret du thread");
-				envoie.interrupt();
 				return r;
 			}
 		}
 		catch (IOException | InterruptedException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		catch (JSONException e) { return new ReponseServeur(true); }
 		
+		return null;
+	}
+	
+	/**
+	 * Permet de recevoir une image stockée sur le serveur tel un avatar de JK ou une carte d'un lieu
+	 * @param niv peut prendre la valeur "Carte" (reçoit la carte d'un lieu) ou "Avatar" (reçoit l'vatar d'un JK)
+	 * @param params les paramètres de la méthode à appeler
+	 * @param img l'handler qui donnera accès à l'image reçue
+	 * @return un objet RéponseServeur ou null en cas d'erreur
+	 */
+	public static ReponseServeur recevoirImage(File img, NivImg niv, JSONArray params){
+
+		try {
+			
+			//Envoie de la requete
+			JSONObject req = new JSONObject();
+			req.put("niv_1", "Images");
+			req.put("niv_2", "selectionner"+niv);
+			req.put("param", (params==null)?new JSONArray():params);
+			envoyerRequete(req);
+			
+			//Lecture de la réponse
+			ReponseServeur r = new ReponseServeur(lireReponse());
+			
+			//Lancement de la connexion
+			Socket s = new Socket(serveur, portServeurImg);
+			if(s.isConnected()){
+				//On efface tout
+				FileUtils.writeByteArrayToFile(img, null, false);
+				
+				//Reception de l'image
+				InputStream is = s.getInputStream();
+				byte[] b = new byte[tailleBfr];
+				int longueur = 0;
+				while((longueur = is.read(b)) != -1){
+					FileUtils.writeByteArrayToFile(img, Arrays.copyOf(b, longueur), true);
+				}
+			}
+			s.close();
+			return r;
+			
+		} catch (JSONException | IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		return null;
 	}
 	

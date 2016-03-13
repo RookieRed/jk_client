@@ -44,6 +44,10 @@ public class ReponseServeur implements Serializable {
 	public JSONObject getCorps() {
 		return this.corps;
 	}
+	
+	protected void setException(boolean b) {
+		this.exception = b;
+	}
 
 	@Override
 	public String toString() {

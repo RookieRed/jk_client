@@ -12,9 +12,9 @@ public class main {
 	public static void main(String[] args) throws Exception {
 
 		JSONArray param = new JSONArray(new String[]{"jk1"});
-		File img = new File("avatar.jpg");
+		File img = new File("recv.jpg");
 		
-		ReponseServeur r = RequeteServeur.transfererImage(img, NivImg.ajouterAvatar, param);
+		ReponseServeur r = RequeteServeur.recevoirImage(img, NivImg.Avatar, param);
 		//ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.selectionner, param);
 		System.out.println(r.getCorps());
 		
