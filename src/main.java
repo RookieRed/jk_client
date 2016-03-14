@@ -14,11 +14,13 @@ public class main {
 
 	public static void main(String[] args) throws Exception {
 
-		JSONArray param = new JSONArray(new String[]{"jk1"});
+		JSONArray params = new JSONArray(new String[]{"jk1"});
 		File img = new File("avatar.jpg");
 		
-		RequeteServeur.recevoirImage(NivImg.Avatar, "rcv.jpg", param);
-		//ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.selectionner, param);
+		
+		RequeteServeur.recevoirImage(NivImg.Avatar, "rcv.jpg", params);
+		//ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.selectionner, params);
+//		ReponseServeur r  = RequeteServeur.transfererImage(img, NivImg.Avatar, params);
 //		System.out.println(r.getCorps());
 		
 	}

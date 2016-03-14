@@ -10,18 +10,14 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Array;
 import java.net.HttpURLConnection;
 import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Arrays;
 
 import javax.activation.MimetypesFileTypeMap;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -283,6 +279,21 @@ public abstract class RequeteServeur {
 			req.put("param", (params==null)?new JSONArray():params);
 			envoyerRequete(req);
 			
+
+			Thread t = new Thread(new Runnable() {
+				
+				@Override
+				public void run() {
+					try {
+						lireReponse();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+			});
+			t.start();
+			
 			//Lancement de la connexion
 			try {
 				Socket s = new Socket(serveur, portServeurImg);
@@ -304,7 +315,7 @@ public abstract class RequeteServeur {
 				e.printStackTrace();
 				return null;
 			}
-			lireReponse();
+			t.interrupt();
 			return img;
 			
 		} catch (JSONException | IOException e) {
