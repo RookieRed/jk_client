@@ -1,0 +1,1508 @@
+Début du git coté serveur
+
+# --------------
+# Please enter the commit message for your changes. Everything below
+# this paragraph is ignored, and an empty message aborts the commit.
+# Just close the window to accept your message.
+diff --git a/.htaccess b/.htaccess
+new file mode 100644
+index 0000000..6bcf07c
+--- /dev/null
++++ b/.htaccess
+@@ -0,0 +1,4 @@
++Options +FollowSymlinks
++RewriteEngine On
++
++RewriteRule ^(.*)$ public_html/$1 [L]
+\ No newline at end of file
+diff --git a/public_html/.htaccess b/public_html/.htaccess
+new file mode 100644
+index 0000000..56b79b1
+--- /dev/null
++++ b/public_html/.htaccess
+@@ -0,0 +1,7 @@
++Options +FollowSymlinks
++RewriteEngine On
++
++#RewriteBase /
++
++RewriteCond %{REQUEST_URI}% !(/api.php)
++RewriteRule ^(.*)$ index.php?p=$1 [L]
+diff --git a/public_html/api.php b/public_html/api.php
+new file mode 100644
+index 0000000..3725285
+--- /dev/null
++++ b/public_html/api.php
+@@ -0,0 +1,70 @@
++<?php 
++
++
++
++		/*********************************************
++		****	GESTION GLOBALE PHP DU SITE		*****
++		*********************************************/
++
++//Variables globales d'accès au fichiers
++define('ROOT', str_replace('api.php', '', $_SERVER['SCRIPT_FILENAME']));
++define('WEBROOT', str_replace('api.php', '', $_SERVER['SCRIPT_NAME']));
++define('CORE', "core/");
++define('AVATAR', "img/avatars/");
++define('CARTE', "img/cartes/");
++define('MNGR', "core/managers/");
++define('VIEW', "web/views/");
++
++require "core/autoloader.php";
++header('Content-Type: text/html; charset=utf-8');
++
++session_start();
++
++//Desactive les erreurs
++//error_reporting(0);
++
++if(isset($_POST['JSON'])){
++
++	//Decodage de la requête JSON => objet
++	$request = json_decode($_POST['JSON']);
++	$answer = new stdClass();
++
++	if(isset($request->niv_1)){
++		
++		//On teste d'abord si le niveau 1 existe
++		if(class_exists($request->niv_1)){
++
++			//On teste ensuite si le niveau 2 est un nom de méthode valide
++			if(isset($request->niv_2) && method_exists(new $request->niv_1(), $request->niv_2)){
++				$answer = call_user_func_array("$request->niv_1::".$request->niv_2, $request->param);
++				$answer->exception = false;
++			}
++
++			//S'il n'y a pas de niveau 2
++			else {
++				$answer->exception = true;
++				$answer->error = "Niveau 2 non reconnu";
++			}
++		}
++
++		//s'il n'y a pas de rang 1
++		else{
++			$answer->exception = true;
++			$answer->error = "Niveau 1 non reconnu";
++		}
++	}
++	
++	//affichage de la réponse
++	echo json_encode($answer);
++
++}
++
++//Si le client n'est pas l'application
++else {
++	//include 'index.php';
++	echo "<pre>";
++	print_r(Image::selectionnerNoms("jk1"));
++	echo "</pre>";
++}
++
++?>
+\ No newline at end of file
+diff --git a/public_html/core/Route.php b/public_html/core/Route.php
+new file mode 100644
+index 0000000..915e876
+--- /dev/null
++++ b/public_html/core/Route.php
+@@ -0,0 +1,93 @@
++<?php
++
++/*
++	                                                                                             		      
++	        "8a           88888888ba                                                             		      
++	          "8a         88      "8b                             ,d                             		      
++	8888888888  "8a       88      ,8P                             88                                          
++	              "8a     88aaaaaa8P'  ,adPPYba,   88       88  MM88MMM  ,adPPYba,  88       88  8b,dPPYba,   
++	8888888888    a8"     88""""88'   a8"     "8a  88       88    88    a8P_____88  88       88  88P'   "Y8   
++	            a8"       88    `8b   8b       d8  88       88    88    8PP"""""""  88       88  88           
++	          a8"         88     `8b  "8a,   ,a8"  "8a,   ,a88    88,   "8b,   ,aa  "8a,   ,a88  88           
++	        a8"           88      `8b  `"YbbdP"'    `"YbbdP'Y8    "Y888  `"Ybbd8"'   `"YbbdP'Y8  88           
++	                                                                                
++*/
++
++
++
++/**===========================================================================
++*						ATTRIBUS DU ROUTEUR	                                ==
++*-----------------------------------------------------------------------------
++* ==> Classe basée sur le design pattern singleton                          ==
++* Gère les URL et les requêtes addressées au site 							==
++*									                                        ==
++* -> @jean_kevin le jean_kevin confirmant son URL   			            ==
++* -> @code le code de confirmation d'inscription                            ==
++*===========================================================================*/
++class Route {
++
++	private $jean_kevin;
++	private $code;
++	private static $instance = null;
++
++
++		/*********************
++		***  CONSTRUCTEUR  ***
++		**********************/
++	private function __construct(){
++
++		//Si on est en localhost il faut veiller à ne pas prendre le 'GESCABMED' de trop au début de l'url
++		//if ($_SERVER['HTTP_HOST'] == 'localhost') {
++			$index = 1;
++		//}
++		//else{
++		//	$index = 0;
++		//}
++		//On récupère dans un tableau toutes les données passées dans l'URL 
++		$url = explode('/', substr($_SERVER['REQUEST_URI'], 1));
++
++		//Si les deux premiers paramètres de l'url ne sont pas null on parse
++		if(isset($url[$index]) && $url[$index] != '' && isset($url[$index+1]) && $url[$index+1] != ''){
++			$this->jean_kevin = $url[$index];
++			//On récupère le code...
++			$index++;
++			$this->code = $url[$index];
++		}
++
++		//S'il ne s'agit pas d'un code de confirmation on redirrige sur index
++		else {
++			$this->jean_kevin = null;
++			$this->code = null;
++		}
++	}
++
++
++		/*********************
++		*** GETTTERS & CIE ***
++		**********************/
++	public static function getInstance() {
++		if (Route::$instance == null) {
++			Route::$instance = new Route();
++		}
++		return Route::$instance;
++	}
++
++
++	public function estRequeteConfirmation(){
++		return ($this->jean_kevin != null && $this->code != null && strlen($this->code)==32);
++	}
++
++	public function getJK(){
++		return $this->jean_kevin;
++	}
++
++
++	public function getCode(){
++		return $this->code;
++	}
++
++}
++		
++
++?>
++
+diff --git a/public_html/core/autoloader.php b/public_html/core/autoloader.php
+new file mode 100644
+index 0000000..3651dcd
+--- /dev/null
++++ b/public_html/core/autoloader.php
+@@ -0,0 +1,38 @@
++<?php
++
++/**********************************************************
++***                                                     ***
++***		       db                        88             ***
++***		      d88b                       88             ***
++***		     d8'`8b                      88             ***
++***		    d8'  `8b                     88             ***
++***		   d8YaaaaY8b       aaaaaaaa     88             ***
++***		  d8""""""""8b      """"""""     88             ***
++***		 d8'        `8b                  88             ***
++***		d8'          `8b                 88888888888    ***
++***                                                     ***
++**********************************************************/
++
++
++/**
++* Fonction autoloader qui sera utilisée par le processus à chaque appel de classe,
++* affiche un message d'erreur si la classe n'est pas trouvée.
++* @param $name le nom de la classe appelée
++*/
++function autoLoader($name){
++	try{
++		if($name == "Route" ){
++			require_once CORE."$name.php";
++		}
++		else{
++			require_once MNGR."$name.php";
++		}
++	}
++	catch(Exception $e){
++		echo "Classe ".$name." non trouvée :\n".$e->getMessage();
++	}
++}
++
++spl_autoload_register('autoLoader', false, true);
++
++?>
+\ No newline at end of file
+diff --git a/public_html/core/managers/Amitie.php b/public_html/core/managers/Amitie.php
+new file mode 100644
+index 0000000..0da9669
+--- /dev/null
++++ b/public_html/core/managers/Amitie.php
+@@ -0,0 +1,158 @@
++<?php
++
++
++/***************************************************************************
++**                                                                        **
++**          db                             88           88                **
++**         d88b                            ""    ,d     ""                **
++**        d8'`8b                                 88                       **
++**       d8'  `8b      88,dPYba,,adPYba,   88  MM88MMM  88   ,adPPYba,    **
++**      d8YaaaaY8b     88P'   "88"    "8a  88    88     88  a8P_____88    **
++**     d8""""""""8b    88      88      88  88    88     88  8PP"""""""    **
++**    d8'        `8b   88      88      88  88    88,    88  "8b,   ,aa    **
++**   d8'          `8b  88      88      88  88    "Y888  88   `"Ybbd8"'    **
++**                                                                        **
++***************************************************************************/
++
++//Inciation de la connexion PDO;
++Database::instancier();
++
++/**
++* Contient les fonctions permettant de gérer les liens d'amitié entre les Jean-Kévins
++*/
++class Amitie {
++	
++
++	/**
++	 * Envoie une demande en ami au jean_kevin2 passé en paramètre
++	 * @param jk1 le login du premier JK
++	 * @param jk2 le login du 2e jk
++	 */
++	static function ajouter($jk1, $jk2) {
++
++		$reponse  = new stdClass();
++		//Vérification du paramètre en entrée
++		if(strlen($jk1)==0 || strlen($jk2)==0){
++			$reponse->exception = true;
++			$reponse->erreur    = "Erreur de paramètres";
++			return $reponse;
++		}
++
++		//Exécution de la requête MySQL
++		$statement = Database::$instance->prepare("INSERT INTO r_lier(identifiant1, identifiant2, effectif)"
++					." VALUES( :jk1 , :jk2 , 0 );");
++		$reponse->ajoutOK = $statement->execute(array(	":jk1"	=> $jk1,
++														":jk2"	=> $jk2));
++		return $reponse;
++	}
++
++
++
++	/**
++	 * Supprime l'amitié entre deux 2 Jean-Kévins 
++	 * @param jk1 le login du premier JK
++	 * @param jk2 le login du 2e jk
++	 */
++	static function supprimer($jk1, $jk2){
++
++		$reponse  = new stdClass();
++		//Vérification du paramètre en entrée
++		if(strlen($jk1)==0 || strlen($jk2)==0){
++			$reponse->exception = true;
++			$reponse->erreur    = "Erreur de paramètres";
++			return $reponse;
++		}
++
++
++		//Exécution de la requête MySQL
++		$statement = Database::$instance->prepare("DELETE FROM r_lier WHERE (identifiant1="
++					." :jk1 AND identifiant2= :jk2 ) OR (identifiant2="
++					." :jk1 AND identifiant1= :jk2 );");
++		$reponse->suppressionOK = $statement->execute(array(	":jk1"	=> $jk1,
++														":jk2"	=> $jk2));
++		return $reponse;
++
++	}
++
++
++
++	/**
++	 * Permet d'accepter une demande en amitié entre 2 Jean Kevins
++	 * @param jk1 le login du premier JK
++	 * @param jk2 le login du 2e jk
++	 */
++	static function accepter($jk1, $jk2){
++
++		$reponse  = new stdClass();
++		//Vérification du paramètre en entrée
++		if(strlen($jk1)==0 || strlen($jk2)==0){
++			$reponse->exception = true;
++			$reponse->erreur    = "Erreur de paramètres";
++			return $reponse;
++		}
++
++		//Exécution de la requête MySQL
++		$statement = Database::$instance->prepare("UPDATE r_lier SET `effectif`=1 WHERE (identifiant1="
++					." :jk1 AND identifiant2= :jk2 ) OR (identifiant2="
++					." :jk1 AND identifiant1= :jk2 );");
++		$reponse->acceptee = $statement->execute(array(	":jk1"	=> $jk1,
++														":jk2"	=> $jk2));
++		return $reponse;
++
++	}
++
++
++	/**
++	 * Vérifie si il existe une relation entre les 2 JK et si elle est effective
++	 * @param jk1 le login du premier JK
++	 * @param jk2 le login du 2e jk
++	 * @return vrai si la demande a été acceptée, faux sinon
++	 */
++	static function estEffictive($jk1, $jk2){
++
++		$reponse  = new stdClass();
++		//Vérification du paramètre en entrée
++		if(strlen($jk1)==0 || strlen($jk2)==0){
++			$reponse->exception = true;
++			$reponse->erreur    = "Erreur de paramètres";
++			return $reponse;
++		}
++
++		//Exécution de la requête MySQL
++		$statement = Database::$instance->prepare("SELECT * FROM r_lier WHERE (identifiant1="
++					." :jk1 AND identifiant2= :jk1 ) OR (identifiant2="
++					." :jk2 AND identifiant1= :jk2 )"
++					." AND effectif=1;");
++		$reponse->estEffective = $statement->execute(array(	":jk1"	=> $jk1,
++														":jk2"	=> $jk2));
++		return $reponse;
++	}
++
++
++	/**
++	 * Vérifie si il existe une relation entre les 2 JK
++	 * @param jk1 le login du premier JK
++	 * @param jk2 le login du 2e jk
++	 * @return vrai si une demande a été émise, faux sinon
++	 */
++	static function existe($jk1, $jk2){
++
++		$reponse  = new stdClass();
++		//Vérification du paramètre en entrée
++		if(strlen($jk1)==0 || strlen($jk2)==0){
++			$reponse->exception = true;
++			$reponse->erreur    = "Erreur de paramètres";
++			return $reponse;
++		}
++
++		//Exécution de la requête MySQL
++		$statement = Database::$instance->prepare("SELECT * FROM r_lier WHERE (identifiant1="
++					." :jk1 AND identifiant2= :jk1 ) OR (identifiant2="
++					." :jk2 AND identifiant1= :jk2 )");
++		$reponse->existe = $statement->execute(array(	":jk1"	=> $jk1,
++														":jk2"	=> $jk2));
++		return $reponse;
++	}
++
++
++}
+\ No newline at end of file
+diff --git a/public_html/core/managers/Database.php b/public_html/core/managers/Database.php
+new file mode 100644
+index 0000000..f320561
+--- /dev/null
++++ b/public_html/core/managers/Database.php
+@@ -0,0 +1,66 @@
++<?php
++
++
++/********************************************************************************************************
++**                                                                                                     **
++**    88888888ba,                                     88                                               **
++**    88      `"8b                 ,d                 88                                               **
++**    88        `8b                88                 88                                               **
++**    88         88  ,adPPYYba,  MM88MMM  ,adPPYYba,  88,dPPYba,   ,adPPYYba,  ,adPPYba,   ,adPPYba,   **
++**    88         88  ""     `Y8    88     ""     `Y8  88P'    "8a  ""     `Y8  I8[    ""  a8P_____88   **
++**    88         8P  ,adPPPPP88    88     ,adPPPPP88  88       d8  ,adPPPPP88   `"Y8ba,   8PP"""""""   **
++**    88      .a8P   88,    ,88    88,    88,    ,88  88b,   ,a8"  88,    ,88  aa    ]8I  "8b,   ,aa   **
++**    88888888Y"'    `"8bbdP"Y8    "Y888  `"8bbdP"Y8  8Y"Ybbd8"'   `"8bbdP"Y8  `"YbbdP"'   `"Ybbd8"'   **
++**                                                                                                     **
++**                                                                                                     **
++*********************************************************************************************************/
++
++/**
++* Database ne contient qu'une instance static de l'objet PDO
++* C'est le fichier de configuration de connexion à la BdD
++* Pour l'utiliser il faut instancier la connexion et utiliser l'objet PDO
++*/
++class Database {
++	
++	//Attribus de la classe
++
++	private static $dsn;
++	private static $user;
++	private static $psw;
++	public  static $instance = null;
++
++
++	//Méthodes de classe
++
++	public static function instancier(){
++
++		if(self::$instance==null){
++
++			//Instanciation des données de connection
++			if($_SERVER['HTTP_HOST'] == "localhost"){
++				self::$dsn  = "mysql:dbname=jean_kevin;host=localhost;charset=UTF8";
++				self::$user = "root";
++				self::$psw  = "";
++			}
++			else {
++				self::$dsn  = "mysql:dbname=db618325086;host=db618325086.db.1and1.com;charset=UTF8";
++				self::$user = "dbo618325086";
++				self::$psw  = "q2lG3Nk6a4";
++			}
++
++			//On lance la connexion (objet PDO)
++			try {
++				self::$instance = new PDO(self::$dsn, self::$user, self::$psw);
++			}
++			catch (Execption $e){
++				echo "Erreur connexion BdD:\n".$e->getMessage();
++			}
++		}
++		//Si la connexion échou on arrête le processus
++		if(self::$instance==null)
++			die("\nConnexion à la base impossible");
++	}
++
++}
++
++?>
+\ No newline at end of file
+diff --git a/public_html/core/managers/Image.php b/public_html/core/managers/Image.php
+new file mode 100644
+index 0000000..93d1511
+--- /dev/null
++++ b/public_html/core/managers/Image.php
+@@ -0,0 +1,332 @@
++<?php
++
++
++Database::instancier();
++
++/*********************************************************************
++**                                                                  **
++**   88                                                             **
++**   88                                                             **
++**   88                                                             **
++**   88  88,dPYba,,adPYba,   ,adPPYYba,   ,adPPYb,d8   ,adPPYba,    **
++**   88  88P'   "88"    "8a  ""     `Y8  a8"    `Y88  a8P_____88    **
++**   88  88      88      88  ,adPPPPP88  8b       88  8PP"""""""    **
++**   88  88      88      88  88,    ,88  "8a,   ,d88  "8b,   ,aa    **
++**   88  88      88      88  `"8bbdP"Y8   `"YbbdP"Y8   `"Ybbd8"'    **
++**                                        aa,    ,88                **
++**                                         "Y8bbdP"                 **
++**                                                                  **
++*********************************************************************/
++
++class Image {
++
++
++				/////**************\\\\\
++				////                \\\\
++				///     ATTRIBUS     \\\
++				//....................\\
++
++	/**
++	* Numéro de port d'écoute pour le transgfert d'images
++	*/
++	private static $port = 9997;
++	/**
++	* Taille du buffer pour la communication client - serveur
++	*/
++	private static $tailleBfr = 2048;
++
++
++
++				/////**************\\\\\
++				////                \\\\
++				///     METHODES     \\\
++				//....................\\
++	
++
++
++    /**
++    * Fonction privée permettant de se connecter sur un nouveau socket avec un client
++    * @return le descripteur de fichier du socket de communication 
++    */
++    private static function connecterSocket(){
++
++            // Autorise l'exécution infinie du script, en attente de connexion.
++            set_time_limit(0);
++
++            //Création du socket
++            if(($sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) == false){
++                die("Erreur création : ".socket_strerror(socket_last_error()));
++            }
++
++            //Post du socket
++            $addrLoc = ($_SERVER['HTTP_HOST']=="localhost")?"127.0.0.1":$_SERVER['SERVER_ADDR'];
++            if(!socket_bind($sock, $addrLoc, self::$port)){
++                die("Erreur publication socket : ".socket_strerror(socket_last_error()));
++            }
++
++            //Ecoute du socket
++            if(!socket_listen($sock)){
++                die("Erreur listen : ".socket_strerror(socket_last_error()));
++            }
++            //Acceptation de la connexion
++            if(($sockClient = socket_accept($sock))==false){
++                die("Erreur accept : ".socket_strerror(socket_last_error()));
++            }
++            socket_close($sock);
++            socket_set_nonblock($sockClient);
++
++            //On retourne le socket crée
++            return $sockClient;
++    }
++
++
++
++	/**
++	* Permet d'ajouter un avatar au JeanKevin dont l'identifiant est spécifié
++	* et de l'enregistré par défaut
++	* @param $jean_kevin correspond à l'identifiant de JK
++	* @param $nomImage le nom de l'image à enregistrer
++	*/
++	static function ajouterAvatar($jean_kevin, $nomImage) {
++
++		$reponse = new stdClass();
++        //Vérification des paramètres
++        if($jean_kevin == null){
++            $reponse->exception = true;
++            $reponse->error = "Erreur de parramètres";
++            return $reponse;
++        }
++        
++        //On vérifie que le JK existe
++        if(JeanKevin::existe($jean_kevin)){
++
++            $path = substr(AVATAR.$jean_kevin,0);
++            //On vérifie que le dossier du jean_kevin existe
++            if(!is_dir($path)){
++                mkdir($path, 0755, false);
++            } 
++
++
++            //Création de la socket serveur
++			$sockClient = self::connecterSocket();
++
++            //Création du fichier image
++            $i = 1;
++            while(file_exists(AVATAR.$jean_kevin."/$nomImage")){
++            	$nomParse = explode('.', $nomImage);
++            	$nomImage = substr($nomParse[0], 0, strlen($nomParse[0]) - (($i!=1)?strlen($i-1):0) )."$i.$nomParse[1]";
++            	$i++;
++            }
++            $img = fopen(AVATAR.$jean_kevin."/$nomImage", 'a+');
++
++            //Reception de l'image
++            while ( ($bfr = socket_read($sockClient, self::$tailleBfr, PHP_BINARY_READ)) != false ){
++           		//Ecriture dans le fichier image
++           		fwrite($img, $bfr);
++            }
++            fclose($img);
++            socket_close($sockClient);
++            $reponse->finCommuncation = true;
++
++            //On ajoute une image à la base de données
++            $statement = Database::$instance->prepare("INSERT INTO image (chemin, identifiant_jk)"
++                ." VALUES( :path, :jean_kevin );");
++            $reponse->ajoutBD = $statement->execute(array(":path" => AVATAR.$jean_kevin."/$nomImage",
++                                        ":jean_kevin" => $jean_kevin));
++            return $reponse;
++        }
++
++        else {
++            $reponse->exception = true;
++            $reponse->error = "Jean Kévin non trouvé";
++        }
++        return $reponse;
++
++    }
++
++
++
++    /**
++    * Selectionne l'avatar actuel de JK et le retourne dans le socket de communication
++    * @param identifiant de JK
++    */
++    static function selectionnerAvatar($jean_kevin){
++
++        $reponse = new stdClass();
++        //Vérification des paramètres
++        if($jean_kevin == null || strlen($jean_kevin)==0){
++            $reponse->exception = true;
++            $reponse->error = "Erreur de parramètres";
++            return $reponse;
++        }
++
++        //On selectionne le Jean Kevin et le champs "photo"
++        $statement = DataBase::$instance->prepare("SELECT photo FROM jean_kevin WHERE identifiant = :identifiant ;");
++        $ret = $statement->execute(array(':identifiant' => $jean_kevin));
++        $path  = $statement->fetch()['photo'];
++
++        //Si la BDD nous retourne null
++        if($path == null || strlen($path)==0 || !file_exists($path)){
++            $reponse->erreur = "Pas de photo de profil enregistrée, ou mauvais identifiant";
++            return $reponse;
++        }
++        $img = fopen($path, "r");
++
++        //On lance la connection avec le client
++        $sockClient = self::connecterSocket();
++        $bfr = fread($img, filesize($path));
++        socket_write($sockClient, $bfr);
++        socket_close($sockClient);
++
++        //Retour d ela réponse
++        $reponse->finTransfert = true;
++        return $reponse;
++
++    }
++
++
++    /**
++    * 
++    */
++    static function selectionner($chemin){
++
++        $reponse = new stdClass();
++        //Vérification des paramètres
++        if($chemin == null || strlen($chemin)==0){
++            $reponse->exception = true;
++            $reponse->error = "Erreur de parramètres";
++            return $reponse;
++        }
++
++        //On vérifie que l'image existe dans la base de données
++        $statement = DataBase::$instance->prepare("SELECT * FROM image WHERE chemin = :chemin ;");
++        $statement->execute(array(':chemin' => $chemin));
++        $img = $statement->fetch();
++
++        //Si l'image n'existe pas on retourne un message d'erreur
++        if(!$img['chemin'] === $chemin && file_exists($chemin)){
++            $reponse->exception = true;
++            $reponse->erreur = "L'image n'existe pas";
++            return $reponse;
++        }
++
++        //Ouverture du socket de communication et envoie de l'image
++        $sockClient = self::connecterSocket();
++        $fichier = fopen($chemin, 'r');
++        $bfr = fread($fichier, filesize($chemin));
++        socket_write($sockClient, $bfr);
++        //fermeture socket / fichier
++        socket_close($sockClient);
++        fclose($fichier);
++
++        //Retour de la réponse
++        $reponse->finTransfert = true;
++        return $reponse;
++    }
++
++
++    static function selectionnerNoms($jean_kevin) {
++
++        $reponse = new stdClass();
++        //Vérification des paramètres
++        if($jean_kevin == null || strlen($jean_kevin)==0){
++            $reponse->exception = true;
++            $reponse->error = "Erreur de parramètres";
++            return $reponse;
++        }
++
++        //On vérifie que l'image existe dans la base de données
++        $statement = DataBase::$instance->prepare("SELECT * FROM image WHERE identifiant_jk = :jean_kevin ;");
++        $statement->execute(array(':jean_kevin' => $jean_kevin));
++        $reponse->chemins = $statement->fetchAll();
++        //On supprime les cases inutiles et on réécrit le chemin
++        foreach ($reponse->chemins as &$chemin ) {
++            unset($chemin[0]);
++            unset($chemin[1]);
++            unset($chemin['identifiant_jk']);
++            $chemin['chemin'] = substr($chemin['chemin'], strlen(AVATAR."/$jean_kevin"));
++        }
++        
++        return $reponse;
++    }
++
++    /**
++    *
++    */
++    static function ajouterCarte(){
++    	
++    }
++
++
++    /**
++    * Supprime une image de la BD et du serveur
++    * @param nom de l'image que l'on souhaite supprimer
++    * @param (optionnel) identifiant du JK à spécifier si l'image n'est pas une carte 
++    */
++    static function supprimer($nomImage, $jean_kevin=null){
++
++        $reponse = new stdClass();
++        //Vérification des paramètres
++        if($nomImage == null || strlen($nomImage)==0){
++            $reponse->exception = true;
++            $reponse->error = "Erreur de parramètres";
++            return $reponse;
++        }
++
++        //S'il y a un identifiant indiqué on recherche l'image parmis les avatars
++        if($jean_kevin !== null){
++            $nomImage = AVATAR."$jean_kevin/$nomImage";
++        }
++        //Sinon on cherche parmi les cartes
++        else {
++            $nomImage = CARTE.$nomImage;
++        }
++
++        //Suppression de l'image dans la BdD
++        $statement = DataBase::$instance->prepare("DELETE FROM image WHERE chemin = :chemin ;");
++        $reponse->suppressionOK = $statement->execute(array(':chemin' => $nomImage));
++
++        //Suppression du serveur
++        $reponse->suppressionOK = $reponse->suppressionOK && unlink($nomImage);
++        return $reponse;
++    }
++
++
++    /**
++    * Vérifie si une image existe et dans la BD et sur le serveur
++    * @param nom de l'image dont on cherceh l'existence
++    * @param (optionnel) identifiant du JK à spécifier s'il on ne recherche pas une carte 
++    */
++    static function existe($nomImage, $jean_kevin=null){
++
++        $reponse = new stdClass();
++        //Vérification des paramètres
++        if($nomImage == null || strlen($nomImage)==0){
++            $reponse->exception = true;
++            $reponse->error = "Erreur de parramètres";
++            return $reponse;
++        }
++
++        //S'il y a un identifiant indiqué on recherche l'image parmis les avatars
++        if($jean_kevin !== null){
++            $nomImage = AVATAR."$jean_kevin/$nomImage";
++        }
++        //Sinon on cherche parmi les cartes
++        else {
++            $nomImage = CARTE.$nomImage;
++        }
++
++        //On selectionne l'image
++        $statement = DataBase::$instance->prepare("SELECT * FROM image WHERE chemin = :chemin ;");
++        $ret = $statement->execute(array(':chemin' => $nomImage));
++        $jk  = $statement->fetch();
++        $reponse->existe = ($jk['chemin'] == $nomImage);
++
++        //On vérifie que l'image existe aussi sur le serveur
++        $reponse->existe = $reponse->existe && file_exists($nomImage);
++        return $reponse;
++    }
++
++}
++
++?>
+\ No newline at end of file
+diff --git a/public_html/core/managers/JeanKevin.php b/public_html/core/managers/JeanKevin.php
+new file mode 100644
+index 0000000..a180219
+--- /dev/null
++++ b/public_html/core/managers/JeanKevin.php
+@@ -0,0 +1,376 @@
++<?php
++
++//Inciation de la connexion PDO;
++Database::instancier();
++
++/**************************************************************************************************************
++**                                                                                                           **
++**          88                                       88      a8P                           88                **
++**          88                                       88    ,88'                            ""                **
++**          88                                       88  ,88"                                                **
++**          88   ,adPPYba,  ,adPPYYba,  8b,dPPYba,   88,d88'       ,adPPYba,  8b       d8  88  8b,dPPYba,    **
++**          88  a8P_____88  ""     `Y8  88P'   `"8a  8888"88,     a8P_____88  `8b     d8'  88  88P'   `"8a   **
++**          88  8PP"""""""  ,adPPPPP88  88       88  88P   Y8b    8PP"""""""   `8b   d8'   88  88       88   **
++**  88,   ,d88  "8b,   ,aa  88,    ,88  88       88  88     "88,  "8b,   ,aa    `8b,d8'    88  88       88   **
++**   "Y8888P"    `"Ybbd8"'  `"8bbdP"Y8  88       88  88       Y8b  `"Ybbd8"'      "8"      88  88       88   **
++**                                                                                                           **
++**************************************************************************************************************/
++
++
++class JeanKevin {
++
++
++
++	/**
++	 * Fonction vérifiant l'existence d'un Jean Kevin dans la base de données
++	 * @param identifiant du jean_kevin à rechercher
++	 */
++	static function existe($identifiant){
++
++		$reponse  = new stdClass();
++		//Vérification du paramètre en entrée
++		if($identifiant == null || strlen($identifiant)==0){
++			$reponse->exception = true;
++			$reponse->erreur    = "Erreur de paramètres";
++			return $reponse;
++		}
++
++		//On selectionne le Jean Kevin
++		$statement = DataBase::$instance->prepare("SELECT * FROM jean_kevin WHERE identifiant = :identifiant ;");
++		$ret = $statement->execute(array(':identifiant' => $identifiant));
++		$jk  = $statement->fetch();
++		$reponse->existe = ($jk['identifiant'] == $identifiant);
++		return $reponse;
++	}
++
++
++
++	/**
++	 * Fonction permettant la connection d'un Jean Kevin à l'application
++	 * @param identifiant du jean_kevin à rechercher
++	 * @param mdp le mot de passe crypté
++	 */
++	static function connecter($identifiant, $mdp){
++
++		$reponse  = new stdClass();
++		$reponse->connecte = false;
++		//Vérification du paramètre en entrée
++		if($identifiant == null || strlen($identifiant)==0 || strlen($mdp)==0 ){
++			$reponse->exception = true;
++			$reponse->erreur    = "Erreur de paramètres";
++			return $reponse;
++		}
++
++		//Selection du JK
++		$statement = DataBase::$instance->prepare("SELECT * FROM jean_kevin WHERE identifiant = :identifiant "
++			."AND mot_de_passe = :mdp ;");
++		$ret = $statement->execute(array(":identifiant" => $identifiant,
++										":mdp" => $mdp));
++		$jk = $statement->fetch();
++
++		//Si le compte n'est pas actif on le signal au client
++		if($jk['actif'] == 0){
++			$reponse->actif = false;
++			return $reponse;
++		}
++		else {
++			$reponse->actif = true;
++		}
++
++		$reponse->connecte = ($jk['identifiant'] == $identifiant);
++		return $reponse;
++
++	}
++
++
++
++	/**
++	* Selectionne les données du JK
++	* @param identifiant de JK
++	*/
++	static function selectionner($identifiant){
++
++		$reponse  = new stdClass();
++		//Vérification du paramètre en entrée
++		if($identifiant == null || strlen($identifiant)==0){
++			$reponse->exception = true;
++			$reponse->erreur    = "Erreur de paramètres";
++			return $reponse;
++		}
++
++		//Selection du JK
++		$statement = DataBase::$instance->prepare("SELECT * FROM jean_kevin WHERE identifiant = :identifiant ;");
++		$ret       = $statement->execute(array(':identifiant' => $identifiant));
++		$reponse->jk = $statement->fetch();
++		for($i=0; $i<count($reponse->jk) ;$i++){
++			unset($reponse->jk[$i]);
++		}
++		return $reponse;
++
++	}
++
++
++
++	/**
++	* Selectionne tous les amis effectifs de JK
++	* @param identifiant du JK dont on veu tles amis
++	*/
++	static function selectionnerAmis($identifiant){
++
++		$reponse  = new stdClass();
++		//Vérification du paramètre en entrée
++		if($identifiant == null || strlen($identifiant)==0){
++			$reponse->exception = true;
++			$reponse->erreur    = "Erreur de paramètres";
++			return $reponse;
++		}
++
++		//Selection des amis de JK
++		$statement = DataBase::$instance->prepare("SELECT jk.nom, jk.prenom, jk.identifiant, jk.mail"
++			." FROM jean_kevin jk, r_lier a WHERE (a.identifiant1= :identifiant"
++			." OR a.identifiant2= :identifiant ) AND (a.identifiant1=jk.identifiant"
++			." OR a.identifiant2=jk.identifiant) AND jk.identifiant<> :identifiant"
++			." AND effectif=1;");
++		$statement->execute(array(":identifiant" => $identifiant));
++		$reponse->amis = $statement->fetchAll();
++		//On supprime les doublons du tableau
++		foreach($reponse->amis as &$ami){
++			for($i=0; $i<count($ami) ;$i++){
++				unset($ami[$i]);
++			}
++		}
++		return $reponse;
++	}
++
++
++
++	/**
++	* Defini une photo enregistrée dans la base de donnée comme photo de profile de JK
++	* @param identifiant du JK
++	* @param nom du fichier image 
++	*/
++	static function definirPhotoProfile($identifiant, $nomImage){
++
++		$reponse  = new stdClass();
++		//Vérification du paramètre en entrée
++		if($identifiant == null || strlen($identifiant)==0 || $nomImage == null || strlen($nomImage)==0){
++			$reponse->exception = true;
++			$reponse->erreur    = "Erreur de paramètres";
++			return $reponse;
++		}
++
++		//On vérifie que l'image existe
++		if(! (Image::existe(AVATAR.$nomImage)->existe)){
++			$reponse->exception = true;
++			$reponse->erreur = "L'image n'existe pas dans la bdd";
++			return $reponse;
++		}
++
++		//On modifie la base de données en lui indiquant le nouveau chemin de la photo de profil
++		$statement        = DataBase::$instance->prepare("UPDATE jean_kevin SET photo = :nomImage WHERE identifiant = :identifiant ;");
++		$reponse->modifPP = $statement->execute(array(	":identifiant" 	=> $identifiant,
++														":nomImage"		=> AVATAR.$nomImage));
++		return $reponse;
++
++	}
++
++
++
++	/**
++	* Supprime un Jean Kévin de la base de données ainsi que toutes ses données enregistrer dans la BdD et le serveur
++	* @param identifiant du JK à supprimer
++	*/
++	static function supprimer($identifiant){
++		$reponse  = new stdClass();
++		//Vérification du paramètre en entrée
++		if($identifiant == null || strlen($identifiant)==0){
++			$reponse->exception = true;
++			$reponse->erreur    = "Erreur de paramètres";
++			return $reponse;
++		}
++
++		//suppression de tous les avatars de JK dans la BdD
++		$statement = DataBase::$instance->prepare("DELETE FROM images WHERE identifiant_jk = :identifiant ;");
++		$reponse->avatarsSuppr = $statement->execute(array(':identifiant_jk' => $identifiant));
++		unset($statement);
++		if (!$reponse->avatarsSuppr){
++			$reponse->exception = true;
++			return $reponse;
++		}
++
++		//Suppression des avatars sur le serveur
++		exec("rm -rf ".AVATAR.$identifiant);
++
++		//suppression du JK dans la BdD
++		$statement = DataBase::$instance->prepare("DELETE FROM jean_kevin WHERE identifiant = :identifiant ;");
++		$reponse->suprOK = $statement->execute(array(':identifiant' => $identifiant));
++		return $reponse;
++	}
++
++
++
++	/**
++	 * Ajoute un le Jean Kevin dans la base de données s'il n'existe pas déjà
++	 * @param nom du JK
++	 * @param prenom du JK
++	 * @param identifiant du JK
++	 * @param mot de passe du JK
++	 * @param adresse mail du JK
++	 */
++	static function preinscrire($nom, $prenom, $identifiant, $psw, $mail){
++
++		$reponse  = new stdClass();
++		//Vérification des pararmètres
++		if(strlen($nom) == 0 || strlen($prenom) == 0 || strlen($identifiant) == 0 ||  strlen($psw) == 0 
++			|| strlen($mail) == 0 || !filter_var($mail, FILTER_VALIDATE_EMAIL)){
++			$reponse->exception = true;
++			$reponse->erreur    = "Erreur de paramètres";
++			return $reponse;
++		}
++
++		//Exécution de la requête MySQL
++		$statement = Database::$instance->prepare("INSERT INTO jean_kevin(nom, prenom, identifiant, mot_de_passe, mail)"
++					." VALUES ( :nom , :prenom , :identifiant , :psw , :mail );");
++		$reponse->inscriptionOK = $statement->execute(array(	':nom' => $nom,
++												':prenom' => $prenom ,
++												':identifiant' => $identifiant ,
++												':psw' => $psw,
++												':mail' => $mail));
++
++		//Génération d'un code de connexion et du mail
++		$urlConf = "http://".$_SERVER['HTTP_HOST'].WEBROOT."$identifiant/".md5($identifiant.$nom.$prenom);
++		$message = 	"Hello $prenom!\n\r".
++					"Merci de t'être inscrit à Jean-Kévin, pour confirmer ton inscrption et commencer à utiliser ".
++					"l'application clique sur le lien suivant.\n\r<a href='$urlConf'>$urlConf</a>".
++					"\n\r\n\rA bientôt ;)";
++		//Envoie du mail de confirmation
++		$reponse->mailOK = mail($mail, "[JK] Confirmation d'inscription", $message);
++		return $reponse;
++	}
++
++
++
++	/**
++	* Permet de confirmer l'inscription de JK par le lien envoyé à son adresse mail
++	* @param l'identifiant de JK
++	* @param le code de confirmation d'inscription crée
++	*/
++	static function confirmerInscription($identifiant, $code){
++
++		$reponse  = new stdClass();
++		//Vérification du paramètre en entrée
++		if($identifiant == null || strlen($identifiant)==0 || $code == ''
++			|| ! self::existe($identifiant)){
++			$reponse->exception = true;
++			$reponse->erreur    = "Erreur de paramètres";
++			return $reponse;
++		}
++		
++		//On récupère les données du Jean Kévin
++		$statement = DataBase::$instance->prepare("SELECT * FROM jean_kevin WHERE identifiant = :identifiant ;");
++		$statement->execute(array(':identifiant' => $identifiant));
++		$jk = $statement->fetch();
++
++		//On teste la validité du code de confirmation
++		$nouvCode = md5($jk['identifiant'].$jk['nom'].$jk['prenom']);
++		if(strcmp($code, $nouvCode) == 0){
++			$statement = DataBase::$instance->prepare("UPDATE jean_kevin SET actif=1 WHERE identifiant = :identifiant ;");
++			$statement->execute(array(':identifiant' => $identifiant));
++			include VIEW."confirmation.php";
++		}
++	}
++
++
++	/**
++	* Permet de modifier le mot de passe d'un JK
++	* @param l'identifiant de JK
++	* @param le nouveau mot de passe de JK
++	*/
++	static function modifierMotDePasse($identifiant, $psw){
++
++		$reponse  = new stdClass();
++		//Vérification du paramètre en entrée
++		if($identifiant == null || strlen($identifiant)==0 || strlen($psw)==0 ){
++			$reponse->exception = true;
++			$reponse->erreur    = "Erreur de paramètres";
++			return $reponse;
++		}
++
++		//Modification du mdp
++		$statement = Database::$instance->prepare("UPDATE jean_kevin SET mot_de_passe = :mdp WHERE identifiant = :identifiant");
++		$reponse->modifMDP = $statement->execute(array(	":mdp" => $psw,
++														":identifiant" => $identifiant));
++		return $reponse;
++	}
++
++	/**
++	 * Permet de modifier les inforamtions personnelles de Jean-Kévin
++	 * @param idenetifiant du JK ciblé
++	 * @param nom le nouveau nom de JK
++	 * @param prenom le nouveau prénom de JK
++	 */
++	static function modifier($identifiant, $nom, $prenom){
++
++		$reponse  = new stdClass();
++		//Vérification du paramètre en entrée
++		if(strlen($identifiant)==0 || strlen($nom)==0 || strlen($prenom)==0){
++			$reponse->exception = true;
++			$reponse->erreur    = "Erreur de paramètres";
++			return $reponse;
++		}
++
++		//Modification des infos de JK
++		$statement = Database::$instance->prepare("UPDATE jean_kevin SET nom = :nom,"
++			." prenom = :prenom WHERE identifiant = :identifiant");
++		$reponse->modif = $statement->execute(array(	":nom" => $nom,
++														":prenom" => $prenom,
++														":identifiant" => $identifiant));
++		return $reponse;
++	}
++
++
++	/**
++	 * Permet de modifier l'adresse mail d'un JK dont le compte n'est pas encore actif et
++	 * envoie un mail sur la nouvelle adresse pour la confirmer
++	 * @param idenetifiant du JK ciblé
++	 * @param mail la nouvelle adresse mail à enregistrer
++	 */
++	static function modifierMail($identifiant, $mail){
++
++		$reponse  = new stdClass();
++		//Vérification du paramètre en entrée
++		if(strlen($identifiant)==0 || strlen($mail)==0){
++			$reponse->exception = true;
++			$reponse->erreur    = "Erreur de paramètres";
++			return $reponse;
++		}
++		//On sélectionne le JK s'il existe
++		$rep = self::selectionner($identifiant);
++		//Si Jean Kévin existe et que son compte n'est aps encore actif on modifie son mail
++		if(isset($rep->jk) && isset($rep->actif) && !$rep->actif){
++
++			//Modification du mail dans la BDD
++			$statement = Database::$instance->prepare("UPDATE jean_kevin SET mail = :mail WHERE identifiant = :identifiant");
++			$reponse->modifMail = $statement->execute(array(":mail" => $mail,
++															":identifiant" => $identifiant));
++
++			//Génération d'un code de connexion et du mail
++			$urlConf = "http://".$_SERVER['HTTP_HOST'].WEBROOT."$identifiant/".md5($identifiant.$rep->jk['nom'].$rep->jk['prenom']);
++			$message = 	"Hello $rep->jk['prenom']!\n\r".
++						"Merci de t'être inscrit(e) sur Jean-Kévin, pour confirmer ton inscrption et commencer à utiliser ".
++						"l'application clique sur le lien suivant:\n\r<a href='$urlConf'>$urlConf</a>".
++						"\n\r\n\rA bientôt ;)";
++			//Envoie du mail de confiwarning: LF will be replaced by CRLF in public_html/.htaccess.
+The file will have its original line endings in your working directory.
+rmation
++			$reponse->mailOK = mail($mail, "[JK] Confirmation d'inscription", $message);
++		}
++		else {
++			$reponse->exception = true;
++			$reponse->erreur = "Erreur : JK n'existe pas ou son compte est déjà actif";
++		}
++
++		return $reponse;
++	}
++	
++}
++
++?>
+\ No newline at end of file
+diff --git a/public_html/doc/jean_kevin.sql b/public_html/doc/jean_kevin.sql
+new file mode 100644
+index 0000000..b7e8235
+--- /dev/null
++++ b/public_html/doc/jean_kevin.sql
+@@ -0,0 +1,160 @@
++-- phpMyAdmin SQL Dump
++-- version 4.1.14
++-- http://www.phpmyadmin.net
++--
++-- Client :  127.0.0.1
++-- Généré le :  Jeu 17 Mars 2016 à 17:59
++-- Version du serveur :  5.6.17
++-- Version de PHP :  5.5.12
++
++SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
++SET time_zone = "+00:00";
++
++
++/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
++/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
++/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
++/*!40101 SET NAMES utf8 */;
++
++--
++-- Base de données :  `jean_kevin`
++--
++
++-- --------------------------------------------------------
++
++--
++-- Structure de la table `image`
++--
++
++CREATE TABLE IF NOT EXISTS `image` (
++  `chemin` varchar(100) COLLATE utf8_bin NOT NULL,
++  `identifiant_jk` varchar(30) COLLATE utf8_bin DEFAULT NULL,
++  PRIMARY KEY (`chemin`),
++  KEY `identifiant_jk` (`identifiant_jk`),
++  KEY `identifiant_jk_2` (`identifiant_jk`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
++
++--
++-- Contenu de la table `image`
++--
++
++INSERT INTO `image` (`chemin`, `identifiant_jk`) VALUES
++('img/avatars/jk1/avatar.jpg', 'jk1'),
++('img/avatars/jk1/avatar1.jpg', 'jk1');
++
++-- --------------------------------------------------------
++
++--
++-- Structure de la table `jean_kevin`
++--
++
++CREATE TABLE IF NOT EXISTS `jean_kevin` (
++  `identifiant` varchar(20) COLLATE utf8_bin NOT NULL,
++  `nom` varchar(30) COLLATE utf8_bin NOT NULL,
++  `prenom` varchar(20) COLLATE utf8_bin NOT NULL,
++  `mail` varchar(75) COLLATE utf8_bin NOT NULL,
++  `photo` varchar(100) COLLATE utf8_bin DEFAULT NULL,
++  `mot_de_passe` varchar(32) COLLATE utf8_bin NOT NULL,
++  `actif` tinyint(1) NOT NULL DEFAULT '0',
++  PRIMARY KEY (`identifiant`),
++  UNIQUE KEY `mail` (`mail`),
++  UNIQUE KEY `mail_2` (`mail`),
++  UNIQUE KEY `mail_3` (`mail`),
++  UNIQUE KEY `mail_4` (`mail`),
++  UNIQUE KEY `photo` (`photo`)
++) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
++
++--
++-- Contenu de la table `jean_kevin`
++--
++
++INSERT INTO `jean_kevin` (`identifiant`, `nom`, `prenom`, `mail`, `photo`, `mot_de_passe`, `actif`) VALUES
++('jk1', 'Cédric', 'Eloundou', 'mail@mail.com', 'img/avatars/jk1/avatar.jpg', 'yolo', 1),
++('jk2', 'Ced', 'dric', '', NULL, 'pass', 0),
++('j-k0', 'nom0', 'pren0', 'jk0@mail.cm', NULL, 'pass', 0),
++('j-k1', 'nom1', 'pren1', 'jk1@mail.cm', NULL, 'pass', 0),
++('j-k2', 'nom2', 'pren2', 'jk2@mail.cm', NULL, 'pass', 0),
++('j-k3', 'nom3', 'pren3', 'jk3@mail.cm', NULL, 'pass', 0),
++('j-k4', 'nom4', 'pren4', 'jk4@mail.cm', NULL, 'pass', 0),
++('j-k5', 'nom5', 'pren5', 'jk5@mail.cm', NULL, 'pass', 0),
++('j-k6', 'nom6', 'pren6', 'jk6@mail.cm', NULL, 'pass', 0),
++('j-k7', 'nom7', 'pren7', 'jk7@mail.cm', NULL, 'pass', 0),
++('j-k8', 'nom8', 'pren8', 'jk8@mail.cm', NULL, 'pass', 0),
++('j-k9', 'nom9', 'pren9', 'jk9@mail.cm', NULL, 'pass', 0),
++('log1', 'nom1', 'prenom1', 'log1@mail.com', NULL, 'pass', 1);
++
++-- --------------------------------------------------------
++
++--
++-- Structure de la table `lieu`
++--
++
++CREATE TABLE IF NOT EXISTS `lieu` (
++  `id` int(10) unsigned NOT NULL,
++  `schema` varchar(100) COLLATE utf8_bin NOT NULL,
++  `libelle` varchar(20) COLLATE utf8_bin DEFAULT NULL,
++  PRIMARY KEY (`id`)
++) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
++
++-- --------------------------------------------------------
++
++--
++-- Structure de la table `position`
++--
++
++CREATE TABLE IF NOT EXISTS `position` (
++  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
++  `x` int(11) NOT NULL,
++  `y` int(11) NOT NULL,
++  `identifiant_jk` varchar(20) COLLATE utf8_bin NOT NULL,
++  `id_lieu` int(11) NOT NULL,
++  `jwarning: LF will be replaced by CRLF in public_html/doc/jean_kevin.sql.
+The file will have its original line endings in your working directory.
+our` datetime NOT NULL,
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `identifiant_jk` (`identifiant_jk`,`id_lieu`)
++) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin AUTO_INCREMENT=1 ;
++
++-- --------------------------------------------------------
++
++--
++-- Structure de la table `r_jk_lieu`
++--
++
++CREATE TABLE IF NOT EXISTS `r_jk_lieu` (
++  `identifiant_jk` varchar(20) COLLATE utf8_bin NOT NULL,
++  `id_lieu` int(11) NOT NULL,
++  PRIMARY KEY (`identifiant_jk`,`id_lieu`)
++) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
++
++-- --------------------------------------------------------
++
++--
++-- Structure de la table `r_lier`
++--
++
++CREATE TABLE IF NOT EXISTS `r_lier` (
++  `identifiant1` varchar(20) COLLATE utf8_bin NOT NULL,
++  `identifiant2` varchar(20) COLLATE utf8_bin NOT NULL,
++  `surnom1` varchar(20) COLLATE utf8_bin DEFAULT NULL,
++  `surnom2` varchar(20) COLLATE utf8_bin DEFAULT NULL,
++  `effectif` tinyint(1) NOT NULL,
++  PRIMARY KEY (`identifiant1`,`identifiant2`)
++) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
++
++--
++-- Contenu de la table `r_lier`
++--
++
++INSERT INTO `r_lier` (`identifiant1`, `identifiant2`, `surnom1`, `surnom2`, `effectif`) VALUES
++('jk2', 'jk1', NULL, NULL, 0),
++('jk1', 'j-k0', NULL, NULL, 1),
++('jk1', 'j-k1', NULL, NULL, 1),
++('jk1', 'j-k2', NULL, NULL, 1),
++('jk1', 'j-k3', NULL, NULL, 1),
++('jk1', 'j-k4', NULL, NULL, 1),
++('jk1', 'j-k5', NULL, NULL, 1),
++('jk1', 'j-k6', NULL, NULL, 1),
++('jk1', 'j-k7', NULL, NULL, 1);
++
++/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
++/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
++/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+diff --git a/public_html/img/avatars/jk1/avatar.jpg b/public_html/img/avatars/jk1/avatar.jpg
+new file mode 100644
+index 0000000..d28de15
+Binary files /dev/null and b/public_html/img/avatars/jk1/avatar.jpg differ
+diff --git a/public_html/index.php b/public_html/index.php
+new file mode 100644
+index 0000000..4b5b650
+--- /dev/null
++++ b/public_html/index.php
+@@ -0,0 +1,52 @@
++<?php
++
++
++		/*********************************************
++		****	GESTION GLOBALE PHP DU SITE		*****
++		*********************************************/
++
++//Variables globales d'accès au fichiers
++if(!defined("ROOT")){
++	define('ROOT', str_replace('index.php', '', $_SERVER['SCRIPT_FILENAME']));
++	define('WEBROOT', str_replace('index.php', '', $_SERVER['SCRIPT_NAME']));
++	define('CORE', "core/");
++	define('AVATAR', "img/avatars/");
++	define('MNGR', "core/managers/");
++	define('VIEW', "web/views/");
++}
++
++//Inclusion de l'autoloader
++require_once "core/autoloader.php";
++
++echo "<pre>";
++//print_r($_SERVER);
++echo "</pre>";
++
++//On lance le routeur
++$route = Route::getInstance();
++
++//S'il s'agit d'un code de confirmation alors on exécute la fonction du manager
++if($route->estRequeteConfirmation()){
++	JeanKevin::confirmerInscription($route->getJK(), $route->getCode());
++}
++
++//Sinon on affiche la page d'accueil
++else{
++?><!DOCTYPE html>
++
++<html>
++
++<head>
++	<meta charset='utf-8'/>
++	<title>Où est Jean Kévin?</title>
++</head>
++
++<body>
++	<h1>Bienvenue !</h1>
++	<p>Notre application est bientôt sur le Play Store</p>
++</body>
++
++</html>
++<?php
++}
++?>
+\ No newline at end of file
+diff --git a/public_html/sftp-config.json b/public_html/sftp-config.json
+new file mode 100644
+index 0000000..f1405e5
+--- /dev/null
++++ b/public_html/sftp-config.json
+@@ -0,0 +1,46 @@
++{
++    // The tab key will cycle through the settings when first created
++    // Visit http://wbond.net/sublime_packages/sftp/settings for help
++    //ebeRyR
++    //g.fauvet.perso@gmail.com
++    // sftp, ftp or ftps
++    "type": "sftp",
++
++    "save_before_upload": true,
++    "upload_on_save": true,
++    "sync_down_on_open": false,
++    "sync_skip_deletes": false,
++    "sync_same_age": false,
++    "confirm_downloads": false,
++    "confirm_sync": true,
++    "confirm_overwrite_newer": false,
++    
++    "host": "u84410475.1and1-data.host",
++    "user": "u84410475",
++    "password": "q2lG3Nk6a4",
++    "port": "22",
++    
++    "remote_path": "/public_html/",
++    "ignore_regexes": [
++        "\\.sublime-(project|workspace)", "sftp-config(-alt\\d?)?\\.json",
++        "sftp-settings\\.json", "/venv/", "\\.svn/", "\\.hg/", "\\.git/",
++        "\\.bzr", "_darcs", "CVS", "\\.DS_Store", "Thumbs\\.db", "desktop\\.ini"
++    ],
++    //"file_permissions": "664",
++    //"dir_permissions": "775",
++    
++    //"extra_list_connections": 0,
++
++    "connect_timeout": 30,
++    //"keepalive": 120,
++    //"ftp_passive_mode": false,
++    //"ftp_obey_passive_host": false,
++    //"ssh_key_file": "~/.ssh/id_rsa",
++    //"sftp_flags": ["-F", "/path/to/ssh_config"],
++    
++    //"preserve_modification_times": false,
++    //"remote_time_offset_in_hours": 0,
++    //"remote_encoding": "utf-8",
++    //"remote_locale": "C",
++    //"allow_config_upload": false,
++}
+diff --git a/public_html/web/views/confirmation.php b/public_html/web/views/confirmation.php
+new file mode 100644
+index 0000000..15c5adc
+--- /dev/null
++++ b/public_html/web/views/confirmation.php
+@@ -0,0 +1,3 @@
++<?php
++
++?>
+\ No newline at end of file
+warning: LF will be replaced by CRLF in public_html/index.php.
+The file will have its original line endings in your working directory.
