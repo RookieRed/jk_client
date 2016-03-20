@@ -5,6 +5,12 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 
+import org.json.JSONArray;
+
+import http.ReponseServeur;
+import http.RequeteServeur;
+import http.RequeteServeur.Niveau1;
+import http.RequeteServeur.Niveau2;
 import mysql.BdD;
 
 public class Amitie {
@@ -33,51 +39,41 @@ public class Amitie {
 	
 	/**
 	 * Selectionne tous les Jean Kevins amis de Jean Kevin en paramètre
-	 * @param jk le Jean Kévin central
+	 * @param jk le Jean Kévin dont on veut récupérer les amis
 	 * @return la liste des amis de Jean Kévin
 	 */
 	public static ArrayList<JeanKevin> selectAmis(JeanKevin jk){
-		ArrayList<JeanKevin> list = new ArrayList<JeanKevin>();
-		Statement s = BdD.getStatement();
 		try {
-			ResultSet r = s.executeQuery("SELECT jk.nom, jk.prenom, jk.identifiant, jk.mail"
-			+" FROM jean_kevin jk, r_lier a WHERE (a.identifiant1='"+jk.getIdentifiant()
-			+"' OR a.identifiant2='"+jk.getIdentifiant()+"') AND (a.identifiant1=jk.identifiant"
-			+" OR a.identifiant2=jk.identifiant) AND jk.identifiant<>'"+jk.getIdentifiant()+"'"
-			+" AND effectif=1;");
-			while(r.next()){
-				JeanKevin jks = new JeanKevin(
-						r.getString(1),
-						r.getString(2),
-						r.getString(3));
-				list.add(jks);
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.selectionnerAmis,
+					new JSONArray(new String[]{jk.getIdentifiant()}));
+			if(r.estOK()){
+				ArrayList<JeanKevin> list = new ArrayList<JeanKevin>();
+				JSONArray amis = r.getCorps().getJSONArray("amis");
+				for (int i=0; i<amis.length(); i++) {
+					list.add(JeanKevin.parseJSON(amis.getJSONObject(i)));
+				}
+				return list;
 			}
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return list;
+		} catch (Exception e) {e.printStackTrace();}
+		return null;
 	}
 	
+	
 	/**
-	 * Vérifie si il existe une relation entre els 2 JK et si elle est effective
+	 * Vérifie si il existe une relation entre les 2 JK et si elle est effective
 	 * @param jk1 le login du premier JK
 	 * @param jk2 le login du 2e jk
 	 * @return vrai si la demande a été acceptée, faux sinon
 	 */
-	public static boolean estEffective(String jk1, String jk2){
-		Statement s = BdD.getStatement();
+	public static boolean estEffective(JeanKevin jk1, JeanKevin jk2){
+
 		try {
-			ResultSet r = s.executeQuery("SELECT * FROM r_lier WHERE (identifiant1='"
-					+jk1+"' AND identifiant2='"+jk1+"') OR (identifiant2='"
-					+jk2+"' AND identifiant1='"+jk2+"')"
-					+"AND effectif=1;");
-			if(r.next())
-				return true;
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Amitie, Niveau2.estEffective,
+					new JSONArray(new String[]{jk1.getIdentifiant(), jk2.getIdentifiant()}));
+			if(r.estOK()){
+				return r.getCorps().getBoolean("estEffective");
+			}
+		} catch (Exception e) {e.printStackTrace();}
 		return false;
 	}
 	
@@ -86,32 +82,32 @@ public class Amitie {
 	 * @param jk1 le login du premier JK
 	 * @param jk2 le login du 2e jk
 	 */
-	public static void supprimer(String jk1, String jk2){
-		Statement s = BdD.getStatement();
+	public static boolean supprimer(JeanKevin jk1, JeanKevin jk2){
+		
 		try {
-			s.execute("DELETE FROM r_lier WHERE (identifiant1='"
-					+jk1+"' AND identifiant2='"+jk2+"') OR (identifiant2='"
-					+jk1+"' AND identifiant1='"+jk2+"');");
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Amitie, Niveau2.estEffective,
+					new JSONArray(new String[]{jk1.getIdentifiant(), jk2.getIdentifiant()}));
+			if(r.estOK()){
+				return r.getCorps().getBoolean("suppressionOK");
+			}
+		} catch (Exception e) {e.printStackTrace();}
+		return false;
 	}
 	
 	/**
 	 * Permet d'accepter une demande en amitié entre 2 Jean Kevins
 	 * @param jk1 le login du premier JK
 	 * @param jk2 le login du 2e jk
+	 * @return vrai si l'opération s'est bien déroulée, faux sinon
 	 */
-	public static void accetper(String jk1, String jk2){
-		Statement s = BdD.getStatement();
+	public static boolean accetper(JeanKevin jk1, JeanKevin jk2){
 		try {
-			s.execute("UPDATE r_lier SET `effectif`=1 WHERE (identifiant1='"
-					+jk1+"' AND identifiant2='"+jk2+"') OR (identifiant2='"
-					+jk1+"' AND identifiant1='"+jk2+"');");
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Amitie, Niveau2.accepter,
+					new JSONArray(new String[]{jk1.getIdentifiant(), jk2.getIdentifiant()}));
+			if(r.estOK()){
+				return r.getCorps().getBoolean("acceptee");
+			}
+		} catch (Exception e) {e.printStackTrace();}
+		return false;
 	}
 }

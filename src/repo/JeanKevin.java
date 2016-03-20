@@ -9,6 +9,7 @@ import java.util.LinkedList;
 
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import http.ReponseServeur;
 import http.RequeteServeur;
@@ -40,7 +41,20 @@ public class JeanKevin {
 		this.mail = mail;
 	}
 	
-
+	
+	/**
+	 * Retourne un objet JeanKevin à partir d'un objet JSON
+	 * @param obj l'objet au format JSON
+	 * @return le JeanKévin correspondant ou bine null en cas de problème
+	 */
+	protected static JeanKevin parseJSON(JSONObject obj) {
+		try {
+			return new JeanKevin(obj.getString("nom"), obj.getString("prenom"),
+					obj.getString("identifiant"), obj.getString("mail"));
+		} catch (JSONException e) {e.printStackTrace();}
+		return null;
+	}
+	
 	/**
 	 * Fonction vérifiant l'existence d'un Jean Kevin dans la base de données
 	 * @param identifiant du jean_kevin à rechercher
@@ -103,8 +117,7 @@ public class JeanKevin {
 			JSONArray params = new JSONArray(new String[]{identifiant});
 			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.selectionner, params);
 			if(r.estOK()){
-				return new JeanKevin(r.getCorps().getString("nom"), r.getCorps().getString("prenom"),
-						r.getCorps().getString("identifiant"), r.getCorps().getString("mail"));
+				return parseJSON(r.getCorps().getJSONObject("jk"));
 			} else {
 				System.out.println(r);
 			}
@@ -231,6 +244,11 @@ public class JeanKevin {
 		return false;
 	}
 	
+	/**
+	 * Selectionne tous les avatars du Jean Kévin enregistrés sur le serveur
+	 * et les retourne dans une ArrayList
+	 * @return un ArrayList contenant tous les avatars enregistrés ou null en cas de problème
+	 */
 	@SuppressWarnings("unused")
 	public ArrayList<File> selectionnerTousAvatars(){
 		try{

@@ -1,6 +1,7 @@
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.util.Arrays;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -19,7 +20,10 @@ public class main {
 		JeanKevin jk = JeanKevin.connexion("jk1", "yolo");
 		System.out.println(jk);
 		File img = new File("avatar.jpg");
-		System.out.println(jk.ajouterPhotoProfil(img));
+		if(jk.ajouterPhotoProfil(img)){
+			jk.ajouterPhotoProfil(img);
+			System.out.println(jk.selectionnerTousAvatars());
+		}
 	}
 
 }
