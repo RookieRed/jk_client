@@ -1,7 +1,0 @@
-Options +FollowSymlinks
-RewriteEngine On
-
-#RewriteBase /
-
-RewriteCond %{REQUEST_URI}% !(/api.php)
-RewriteRule ^(.*)$ index.php?p=$1 [L]
