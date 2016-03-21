@@ -1,8 +1,5 @@
 package repo;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 
 import org.json.JSONArray;
@@ -11,7 +8,6 @@ import http.ReponseServeur;
 import http.RequeteServeur;
 import http.RequeteServeur.Niveau1;
 import http.RequeteServeur.Niveau2;
-import mysql.BdD;
 
 public class Amitie {
 	
@@ -21,18 +17,15 @@ public class Amitie {
 	 * @param jk2 le login du 2e jk
 	 * @return
 	 */
-	public static boolean existe(String log1, String log2){
-		Statement s = BdD.getStatement();
+	public static boolean existe(JeanKevin jk1, JeanKevin jk2){
+
 		try {
-			ResultSet r = s.executeQuery("SELECT * FROM r_lier WHERE (identifiant1='"
-					+log1+"' AND identifiant2='"+log2+"') OR (identifiant2='"
-					+log1+"' AND identifiant1='"+log2+"');");
-			if(r.next())
-				return true;
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Amitie, Niveau2.estEffective,
+					new JSONArray(new String[]{jk1.getIdentifiant(), jk2.getIdentifiant()}));
+			if(r.estOK()){
+				return r.getCorps().getBoolean("existe");
+			}
+		} catch (Exception e) {e.printStackTrace();}
 		return false;
 	}
 	

@@ -15,9 +15,7 @@ import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-
 import javax.activation.MimetypesFileTypeMap;
-
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -59,6 +57,7 @@ public abstract class RequeteServeur {
 		modifierMail,
 		modifierMotDePasse,
 		preinscrire,
+		rechercher,
 		selectionner,
 		selectionnerAmis,
 		selectionnerNoms,
@@ -71,6 +70,26 @@ public abstract class RequeteServeur {
 	}
 	
 	
+	/**
+	 * Instancie la connexion au serveur
+	 */
+	public static void lancerConnexion(){
+		if(url == null){
+			try {
+				url = new URL("http://"+serveur+cible);
+				connection = (HttpURLConnection) url.openConnection();
+			} catch (IOException e) {e.printStackTrace();}
+		}
+	}
+	
+	/**
+	 * Ferme la connexion au serveur.
+	 * A n'utiliser qu'à la fin de la session pour éviter de réouvrir une session (gain de temps)
+	 */
+	public static void fermerConnexion(){
+		connection.disconnect();
+		url = null;
+	}
 	
 	/**
 	 * Permet d'envoyer une requête HTTP formatée pour le serveur
@@ -82,8 +101,7 @@ public abstract class RequeteServeur {
 			throws JSONException, IOException{
 		
 		//Lancement de la connexion
-		url = new URL("http://"+serveur+cible);
-		connection = (HttpURLConnection) url.openConnection();
+		if(url == null) lancerConnexion();
 		
 		//Création de la requête post
 		String post = "JSON="+requete.toString();

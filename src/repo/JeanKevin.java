@@ -1,11 +1,7 @@
 package repo;
 
 import java.io.File;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.LinkedList;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -16,7 +12,6 @@ import http.RequeteServeur;
 import http.RequeteServeur.NivImg;
 import http.RequeteServeur.Niveau1;
 import http.RequeteServeur.Niveau2;
-import mysql.BdD;
 
 public class JeanKevin {
 	
@@ -143,10 +138,30 @@ public class JeanKevin {
 		return false;
 	}
 	
-//	public static LinkedList<JeanKevin> rechercher(){
-//		LinkedList l = new LinkedList<JeanKevin>();
-//		return l;
-//	}
+	
+	/**
+	 * 
+	 * @param motCle
+	 * @return
+	 */
+	public static ArrayList<JeanKevin> rechercher(String motsCles){
+		try{
+			ReponseServeur reponse = new ;
+			//On parse les mots clés en les séparatns à chaque espace
+			String[] mots = motsCles.split(" ");
+			
+			//Pour chaque mot clé récupéré on fait une recherche
+			for(String mot : mots){
+				ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.rechercher,
+						new JSONArray(new String[]{mot}));
+				if(r.estOK()){
+					
+				}
+			}
+		} catch (JSONException e){e.printStackTrace();}
+		
+		return null;
+	}
 	
 	/**
 	 * Supprime le Jean-Kévin de la base de données
