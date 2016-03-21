@@ -1,7 +1,0 @@
-ErrorDocument 404 /404.php
-
-Options -Indexes -MultiViews
-Options +FollowSymlinks
-RewriteEngine On
-
-RewriteRule ^(.*)$ public_html/$1 [L]
