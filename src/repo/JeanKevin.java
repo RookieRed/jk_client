@@ -1,10 +1,20 @@
 package repo;
 
+import java.io.File;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.LinkedList;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+
+import http.ReponseServeur;
+import http.RequeteServeur;
+import http.RequeteServeur.NivImg;
+import http.RequeteServeur.Niveau1;
+import http.RequeteServeur.Niveau2;
 import mysql.BdD;
 
 public class JeanKevin {
@@ -22,71 +32,28 @@ public class JeanKevin {
 			/*-----------------
 			-- CONSTRUCTEURS --
 			------------------*/
-
-	public JeanKevin(){
-		this.nom = "";
-		this.prenom = "";
-		this.identifiant = "";
-		this.mail = "";
-	}
 	
-	public JeanKevin(String nom, String prenom, String identifiant, String mail) {
+	private JeanKevin(String nom, String prenom, String identifiant, String mail) {
 		this.nom = nom;
 		this.prenom = prenom;
 		this.identifiant = identifiant;
 		this.mail = mail;
 	}
-
-	public JeanKevin(String nom, String prenom, String identifiant) {
-		this.nom = nom;
-		this.prenom = prenom;
-		this.identifiant = identifiant;
-		this.mail = "";
-	}
-
-	public JeanKevin(String identifiant){
-		this();
-		if (this.existe()) {
-			this.select(identifiant);
-		} else {
-			this.identifiant = identifiant;
-		}
-	}
-
+	
 
 	/**
 	 * Fonction vérifiant l'existence d'un Jean Kevin dans la base de données
 	 * @param identifiant du jean_kevin à rechercher
-	 * @return vrai si trouvé, faux sinon
+	 * @return vrai si trouvé, faux sinon ou en cas de problèmes
 	 */
 	public static boolean existe(String identifiant){
-		Statement s = BdD.getStatement();
 		try {
-			ResultSet r = s.executeQuery("SELECT * FROM jean_kevin WHERE identifiant = "+identifiant+" ;");
-			if (r.next())
-				return true;
-			r.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return false;
-	}
-
-	/**
-	 * Vérifie l'existance du Jean Kevin dans la BdD
-	 * @return vrai si existe, faux sinon
-	 */
-	public boolean existe(){
-		Statement s = BdD.getStatement();
-		try {
-			ResultSet r = s.executeQuery("SELECT * FROM jean_kevin WHERE identifiant = '"+this.identifiant+"' ;");
-			if (r.next()){
-				return true;
+			JSONArray params = new JSONArray(new String[]{identifiant});
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.existe, params);
+			if(r.estOK()){
+				return r.getCorps().getBoolean("existe");
 			}
-			r.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
+		} catch (JSONException e) {e.printStackTrace();}
 		return false;
 	}
 
@@ -94,42 +61,34 @@ public class JeanKevin {
 	/**
 	 * Fonction permettant la connection d'un Jean Kevin à l'application
 	 * @param mdp le mot de passe crypté
-	 * @return vrai si le identifiant/mot de passe marche, faux sinon
+	 * @return un objet JK si la connexion a réussi, null sinon
 	 */
-	public boolean connexion(String mdp){
-		Statement s = BdD.getStatement();
-		if(!this.isEmpty()){
-			try {
-				ResultSet r = s.executeQuery("SELECT * FROM jean_kevin WHERE identifiant = '"+this.identifiant+"' AND psw = '"+mdp+"';");
-				r.close();
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
-		}
-		return false;
+	public static JeanKevin connexion(String identifiant, String mdp){
+		try {
+			JSONArray params = new JSONArray(new String[]{identifiant, mdp});
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.connecter, params);
+			if(r.estOK() && r.getCorps().getBoolean("connecte") && r.getCorps().getBoolean("actif")){
+				return selectionner(identifiant);
+			} else {System.out.println(r);}
+		} catch (JSONException e) {e.printStackTrace();}
+		return null;
 	}
 
 
 	/**
-	 * Ajoute un le Jean Kevin dans la base de données s'il n'existe pas déjà
+	 * Ajoute un le Jean Kevin dans la base de données et envoie un mail de confiramtion d'inscritpion
+	 * à l'adresse renseignée
 	 * @param psw le mot de passe qu'il a choisi
-	 * @return vrai en cas de réussite, faux en cas de problème, ou bine si l'utilisateur existe déjà
+	 * @return vrai en cas de réussite, faux en cas de problème, ou bien si l'utilisateur existe déjà
 	 */
-	public boolean ajouter(String psw){
-		if (this.existe()){
-			return false;
-		}
-		Statement s = BdD.getStatement();
+	public boolean preinscrire(String nom, String prenom, String identifiant, String psw, String mail){
 		try {
-			int res = s.executeUpdate("INSERT INTO jean_kevin(nom, prenom, identifiant, mot_de_passe, mail)" +
-					" VALUES ('" + this.nom + "', '" + this.prenom + "', '" + this.identifiant + "', '"
-					+ psw + "', '"+this.mail+"');");
-			if(res == 1){
-				return true;
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
+			JSONArray params = new JSONArray(new String[]{nom, prenom, identifiant, psw, mail});
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.preinscrire, params);
+			if(r.estOK()){
+				return (r.getCorps().getBoolean("inscriptionOK") && r.getCorps().getBoolean("mailOK"));
+			} else {System.out.println(r);}
+		} catch (JSONException e) {e.printStackTrace();}
 		return false;
 	}
 
@@ -137,149 +96,186 @@ public class JeanKevin {
 	/**
 	 * Fonction permettant la mise à jour des données du Jean Kevin de la BdD vers l'objet
 	 * @param identifiant le identifiant correspondant du jean_kevin
+	 * @return Un objet contenant les infos de JK ou null en cas de problème
 	 */
-	public static JeanKevin select(String identifiant){
-		Statement s = BdD.getStatement();
-		JeanKevin jk = new JeanKevin();
+	public static JeanKevin selectionner(String identifiant){
 		try {
-			ResultSet r = s.executeQuery("SELECT * FROM jean_kevin WHERE identifiant = '" + identifiant + "';");
-			if(r.next()){
-				jk.mail = r.getString("mail");
-				jk.nom = r.getString("nom");
-				jk.prenom = r.getString("prenom");
-				jk.identifiant = identifiant;
+			JSONArray params = new JSONArray(new String[]{identifiant});
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.selectionner, params);
+			if(r.estOK()){
+				return new JeanKevin(r.getCorps().getString("nom"), r.getCorps().getString("prenom"),
+						r.getCorps().getString("identifiant"), r.getCorps().getString("mail"));
+			} else {
+				System.out.println(r);
 			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return jk;
+		} catch (JSONException e) {e.printStackTrace();}
+		return null;
 	}
 
+	
 	/**
 	 * Envoie une demande en amie au jean_kevin2 passé en paramètre
-	 * @param jean_kevin2 le login du 2e Jean Kevin
+	 * @param jean_kevin2 le Jean-Kévin qu'on invite en ami
 	 */
-	public void demanderEnAmi(String jean_kevin2){
-		Statement s = BdD.getStatement();
+	public boolean demanderEnAmi(JeanKevin jean_kevin2){
 		try {
-			//boolean rep = s.execute
-			s.execute("INSERT INTO r_lier(identifiant1, identifiant2, effectif)" +
-					" VALUES('" + this.identifiant + "', '" + jean_kevin2 + "', 0 );");
-			/*if (!rep){
-				throw new RuntimeException();
-			}*/
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+			JSONArray params = new JSONArray(new String[]{this.identifiant, jean_kevin2.getIdentifiant()});
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Amitie, Niveau2.ajouter, params);
+			if(r.estOK()){
+				return r.getCorps().getBoolean("ajoutOK");
+			} else {
+				System.out.println(r);
+			}
+		} catch (Exception e) {e.printStackTrace();}
+		return false;
 	}
 	
-	public static LinkedList<JeanKevin> selectAll(){
-		LinkedList l = new LinkedList<JeanKevin>();
-		return l;
-	}
+//	public static LinkedList<JeanKevin> rechercher(){
+//		LinkedList l = new LinkedList<JeanKevin>();
+//		return l;
+//	}
 	
 	/**
 	 * Supprime le Jean-Kévin de la base de données
 	 * @return vrai si réussi, faux sinon
 	 */
 	public boolean supprimer(){
-		Statement s = BdD.getStatement();
 		try {
-			boolean rep = s.execute("DELETE FROM jean_kevin WHERE identifiant='"+this.identifiant+"';");
-			return rep;
+			JSONArray params = new JSONArray(new String[]{this.identifiant});
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.supprimer, params);
+			if(r.estOK()){
+				return r.getCorps().getBoolean("suprOK");
+			} else {
+				System.out.println(r);
+			}
 		}
-		catch (Exception e){
-			e.printStackTrace();
-		}
+		catch (JSONException e){e.printStackTrace();}
+		return false;
+	}
+
+	
+//	public void donnerPosition(int x, int y, int lieu){
+//		try {
+//			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, niv2, params)
+//		} catch (SQLException e) { e.printStackTrace(); }
+//	}
+	
+	
+	/**
+	 * Permet de modifier les inforamtions personnelles de Jean-Kévin
+	 * @param nom le nouveau nom de JK
+	 * @param prenom le nouveau prénom de JK
+	 * @return vrai si les modifications ont été opérées, faux sinon
+	 */
+	public boolean modifierInformations(String nom, String prenom){
+		try{
+			JSONArray params = new JSONArray(new String[]{this.identifiant, nom, prenom});
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.modifier, params);
+			if(!r.estOK()){
+				System.out.println(r);
+				return false;
+			}
+			return r.estOK() && r.getCorps().getBoolean("modif");
+		} catch(JSONException e){e.printStackTrace();}
 		return false;
 	}
 	
 	
 	/**
-	 * Supprime le Jean-Kévin dont le identifiant est en paramètre de la base de données 
-	 * @param identifiant du jean_kevin à supprimer
-	 * @return
+	 * Permet de modifier l'adresse mail d'un JK dont le compte n'est pas encore actif.
+	 * Il recevra alors un nouveau mail sur la nouvelle adresse pour la confirmer
+	 * @param mail la nouvelle adresse mail à enregistrer
+	 * @return vrai si l'opération a réussie, faux sinon
 	 */
-	public static boolean supprimer(String identifiant){
-		Statement s = BdD.getStatement();
-		try {
-			boolean rep = s.execute("DELETE FROM jean_kevin WHERE identifiant='"+identifiant+"';");
-			return rep;
-		}
-		catch (Exception e){
-			e.printStackTrace();
-		}
+	public boolean modifierMail(String mail){
+		try{
+			JSONArray params = new JSONArray(new String[]{this.identifiant, mail});
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.modifierMail, params);
+			if(r.estOK()){
+				return r.getCorps().getBoolean("modifMail") && r.getCorps().getBoolean("mailOK");
+			} else {System.out.println(r);}
+		} catch(JSONException e) {e.printStackTrace();}
 		return false;
 	}
 	
-	public void donnerPosition(int x, int y, int lieu){
-		Statement s = BdD.getStatement();
-		boolean rep;
-		try {
-			rep = s.execute("INSERT INTO position (x, y, identifiant_jk, id_lieu, jour)"
-					+ "VALUES ("+x+", "+y+", '"+this.identifiant+"', "+x+", "+x+")");
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+	
+	/**
+	 * Permet d'ajouter un avatar à JK et de l'enregistrer comme photo de profile
+	 * @param img le fichier image à enregistrer sur le serveur
+	 * @return vrai si le transfert s'est bien exécuté, faux sinon
+	 */
+	public boolean ajouterPhotoProfil(File img){
+		try{
+			JSONArray params = new JSONArray(new String[]{this.identifiant});
+			ReponseServeur r = RequeteServeur.transfererImage(img, NivImg.Avatar, params);
+			if(r.estOK()){
+				return r.getCorps().getBoolean("finCommuncation") && r.getCorps().getBoolean("ajoutBD");
+			} else {System.out.println(r);}
+		} catch (JSONException e){ e.printStackTrace();}
+		return false;
 	}
 	
-	
-	
-	@Override
-	public String toString() {
-		return "JeanKevin [nom=" + nom + ", prenom=" + prenom + ", identifiant=" + identifiant + "]";
+	/**
+	 * Permet de définir une photo déjà existante comme photo de profil de JK
+	 * @param nomImage le nom de l'image
+	 * @return vrai en cas de succès, faux sinon
+	 */
+	public boolean definirPhotoProfil(String nomImage){
+		try{
+			JSONArray params = new JSONArray(new String[]{this.identifiant, nomImage});
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.definirPhotoProfile, params);
+			if(r.estOK()){
+				return r.getCorps().getBoolean("modifPP");
+			} else {System.out.println(r);}
+		} catch (JSONException e){ e.printStackTrace();}
+		return false;
 	}
+	
+	@SuppressWarnings("unused")
+	public ArrayList<File> selectionnerTousAvatars(){
+		try{
+			//On récupère l'ensemble des noms d'avatars 
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Image, Niveau2.selectionnerNoms,
+					new JSONArray(new String[]{this.identifiant}));
+			if(r.estOK()){
+				JSONArray noms = r.getCorps().getJSONArray("chemins");
+				ArrayList<File> ret = new ArrayList<>();
+				//On récupère tous les avatars correspondants
+				for (int i = 0; i < noms.length(); i++) {
+					ReponseServeur rep = null;
+					File img = RequeteServeur.recevoirImage(NivImg.Avatar, noms.getString(i),
+							new JSONArray(new String[]{this.identifiant}), rep);
+					if(rep != null && rep.estOK()){
+						ret.add(img);
+					}
+				}
+				return ret;
+			} 
+		} catch (JSONException e){e.printStackTrace();}
+		return null;
+	}
+	
 
-		/**********************
-		** GETTERS & SETTERS **
-		** *******************/
+		/********************
+		**     GETTERS     **
+		*********************/
 	
 
-	private boolean isEmpty(){
-		return this.nom == "" && this.prenom == "" && this.identifiant == "";
-	}
 	public String getNom() {
 		return this.nom;
 	}
 	public String getPrenom() {
 		return this.prenom;
 	}
-	public String getidentifiant() {
-		return identifiant;
-	}
-	public void setNom(String nom) {
-		this.nom = nom;
-	}
-	public void setPrenom(String prenom) {
-		this.prenom = prenom;
-	}
-	public void setIdentifiant(String identifiant) {
-		this.identifiant = identifiant;
-	}
 	public String getIdentifiant() {
 		return identifiant;
 	}
-	public void setMail(String mail) {
-		this.mail = mail;
-	}
-
-	/**
-	 * Récupère l'adresse mail enregistrée dans la BdD pour le jean_kevin objet
-	 * @return l'adresse mail ou une chaine vide si problème
-	 */
 	public String getMail(){
-		String mail = "";
-		Statement s = BdD.getStatement();
-		try {
-			ResultSet r = s.executeQuery("SELECT mail FROM jean_kevin WHERE identifiant = '" + this.identifiant + "';");
-			if(r.next()){
-				mail = r.getString("mail");
-			}
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
-		return mail;
+		return this.mail;
+	}
+	@Override
+	public String toString() {
+		return prenom  +" "+ nom + " login : " + identifiant;
 	}
 	
 }

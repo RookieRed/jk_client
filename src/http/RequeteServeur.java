@@ -10,18 +10,14 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Array;
 import java.net.HttpURLConnection;
 import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Arrays;
 
 import javax.activation.MimetypesFileTypeMap;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -37,8 +33,8 @@ import org.json.JSONObject;
 public abstract class RequeteServeur {
 	
 	//Données de connexion serveur
-	private static final String cible		= "/jk/api.php";
-	private static final String serveur		= "localhost";
+	private static final String cible		= "/public_html/api.php";
+	private static final String serveur		= "jean-kevin.com";
 	private static final int portServeurImg = 9997;
 	private static final int tailleBfr      = 2048;
 	
@@ -50,21 +46,28 @@ public abstract class RequeteServeur {
 	public static enum Niveau1 {
 		JeanKevin,
 		Amitie,
+		Image
 	}
 	public static enum Niveau2 {
 		accepter,
 		ajouter,
+		connecter,
 		definirPhotoProfile,
 		estEffective,
 		existe,
+		modifier,
+		modifierMail,
+		modifierMotDePasse,
 		preinscrire,
 		selectionner,
 		selectionnerAmis,
+		selectionnerNoms,
 		supprimer,
 	}
 	public static enum NivImg {
 		Avatar,
 		Carte,
+		Image
 	}
 	
 	
@@ -131,7 +134,11 @@ public abstract class RequeteServeur {
 	public static ReponseServeur executerRequete(Niveau1 niv1, Niveau2 niv2, JSONArray params){
 		
 		try {
-
+			//On vérifie qu'on ne selectionne pas une image
+			if(niv1 == Niveau1.Image && niv2 == Niveau2.selectionner){
+				throw new IllegalArgumentException("Pour sélectionner une image utilisez la méthode recevoirImage");
+			}
+			
 			//Création de la reqête JSON qui sera envoyé dans POST['JSON']
 			JSONObject requete = new JSONObject();
 			requete.put("niv_1", niv1);
@@ -188,7 +195,7 @@ public abstract class RequeteServeur {
 
 			//Création de la reqête JSON qui sera envoyé dans POST['JSON']
 			JSONObject requete = new JSONObject();
-			requete.put("niv_1", "Images");
+			requete.put("niv_1", "Image");
 			requete.put("niv_2", "ajouter"+niv);
 			if(params != null){
 				requete.put("param", params);
@@ -268,46 +275,64 @@ public abstract class RequeteServeur {
 	/**
 	 * Permet de recevoir une image stockée sur le serveur tel un avatar de JK ou une carte d'un lieu
 	 * @param niv peut prendre la valeur "Carte" (reçoit la carte d'un lieu) ou "Avatar" (reçoit l'vatar d'un JK)
-	 * @param params les paramètres de la méthode à appeler
+	 * @param params les paramètres de la méthode à appeler. Peut être null
 	 * @param img l'handler qui donnera accès à l'image reçue
+	 * @param r l'objet réponse serveur qui sera renvoyé
 	 * @return un objet RéponseServeur ou null en cas d'erreur
 	 */
-	public static File recevoirImage(NivImg niv, String path, JSONArray params){
+	public static File recevoirImage(NivImg niv, String path, JSONArray params, ReponseServeur r){
 		
 		try {
+			final ReponseServeur rep = new ReponseServeur(false);
 			File img = new File(path);
+			
 			//Envoie de la requete
 			JSONObject req = new JSONObject();
-			req.put("niv_1", "Images");
-			req.put("niv_2", "selectionner"+niv);
+			req.put("niv_1", "Image");
+			req.put("niv_2", "selectionner"+((niv==NivImg.Avatar)?niv:""));
 			req.put("param", (params==null)?new JSONArray():params);
 			envoyerRequete(req);
 			
-			//Lancement de la connexion
-			try {
-				Socket s = new Socket(serveur, portServeurImg);
-				if(s.isConnected()){
-					
-					//Reception de l'image
-					InputStream is = s.getInputStream();
-					byte[] b = new byte[tailleBfr];
-					System.out.println("Lecture des données");
-					FileOutputStream fos = new FileOutputStream(img);
-					while(is.read(b) != -1){
-						fos.write(b);
+			Thread com = Thread.currentThread();
+			//Thread pour lire la réponse HTTP du serveur
+			synchronized(com){
+				new Thread(new Runnable() {
+					@Override
+					public void run() {
+						try {
+							rep.getCorps().put("reponse", new ReponseServeur(lireReponse()).getCorps());
+							synchronized (com) {
+								com.notify();
+							}
+						} catch (IOException | JSONException e) {e.printStackTrace();}
 					}
-					fos.close();
-					System.out.println("Fin de lecture");
+				}).start();
+				
+				//Lancement de la connexion
+				try {
+					Socket s = new Socket(serveur, portServeurImg);
+					if(s.isConnected()){
+						
+						//Reception de l'image
+						InputStream is = s.getInputStream();
+						byte[] b = new byte[tailleBfr];
+						FileOutputStream fos = new FileOutputStream(img);
+						while(is.read(b) != -1){
+							fos.write(b);
+						}
+						fos.close();
+					}
+					s.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+					return null;
 				}
-				s.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-				return null;
+				com.wait();
+				r = rep;
+				return img;
 			}
-			lireReponse();
-			return img;
 			
-		} catch (JSONException | IOException e) {
+		} catch (JSONException | IOException | InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
