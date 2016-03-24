@@ -31,7 +31,7 @@ import org.json.JSONObject;
 public abstract class RequeteServeur {
 	
 	//Données de connexion serveur
-	private static final String cible		= "/public_html/api.php";
+	private static final String cible		= "/api.php";
 	private static final String serveur		= "jean-kevin.com";
 	private static final int portServeurImg = 9997;
 	private static final int tailleBfr      = 2048;
@@ -98,7 +98,7 @@ public abstract class RequeteServeur {
 	 * A n'utiliser qu'à la fin de la session pour éviter de réouvrir une session (gain de temps)
 	 */
 	public static void fermerConnexion(){
-		connection.disconnect();
+		if (connection != null) connection.disconnect();
 		url = null;
 	}
 	
@@ -112,7 +112,8 @@ public abstract class RequeteServeur {
 			throws JSONException, IOException{
 		
 		//Lancement de la connexion
-		if(url == null) lancerConnexion();
+		fermerConnexion();
+		lancerConnexion();
 		
 		//Création de la requête post
 		String post = "JSON="+requete.toString();
@@ -120,7 +121,7 @@ public abstract class RequeteServeur {
 		connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 		connection.setRequestProperty("Content-Length",
 				""+((serveur+cible).length()+post.toString().length()));
-		connection.setUseCaches(false);
+		connection.setUseCaches(true);
 		connection.setDoOutput(true);
 		
 		//Envoie du POST

@@ -152,13 +152,13 @@ public class JeanKevin {
 			//ReponseServeur reponse = new ;
 			//On parse les mots clés en les séparatns à chaque espace
 			String[] mots = motsCles.split(" ");
-			
+			JSONArray jks = new JSONArray();
 			//Pour chaque mot clé récupéré on fait une recherche
 			for(String mot : mots){
 				ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.rechercher,
 						new JSONArray(new String[]{mot}));
 				if(r.estOK()){
-					
+					jks.put(r.getCorps());
 				}
 			}
 		} catch (JSONException e){e.printStackTrace();}
