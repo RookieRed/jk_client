@@ -44,6 +44,7 @@ public abstract class RequeteServeur {
 	public static enum Niveau1 {
 		JeanKevin,
 		Amitie,
+		Lieu,
 		Image
 	}
 	public static enum Niveau2 {
@@ -60,6 +61,7 @@ public abstract class RequeteServeur {
 		rechercher,
 		selectionner,
 		selectionnerAmis,
+		selectionnerLieuxJK,
 		selectionnerNoms,
 		supprimer,
 	}

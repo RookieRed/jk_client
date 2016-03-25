@@ -1,67 +1,108 @@
 package repo;
 
-import java.awt.Image;
-import java.sql.SQLException;
-import java.sql.Statement;
+import http.ReponseServeur;
+import http.RequeteServeur;
+import http.RequeteServeur.Niveau1;
+import http.RequeteServeur.Niveau2;
+
 import java.util.ArrayList;
 
-import mysql.BdD;
+import org.json.JSONArray;
+import org.json.JSONException;
 
 public class Lieu {
 	
 	private int id;
 	private String libelle;
 	
-	public Lieu() {
-		// TODO Auto-generated constructor stub
+	private Lieu(int id, String libelle) {
+		this.id = id;
+		this.libelle = libelle;
 	}
 	
-	public void ajouter(){
-		Statement s = BdD.getStatement();
-		try {
-			s.execute("INSERT INTO lieu(libelle) VALUES ('"+this.libelle+"');");
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
 	
-	public void updateSchema(Image i){
+	/**
+	 * Ajoute un nouveau lieu dans la base de données
+	 * @param libelle Le nom du lieu
+	 * @return vrai si l'ajout s'est bien passé, faux sinon
+	 */
+	public static boolean ajouter(String libelle){
 		
-	}
-	
-	public void supprimer(){
-		Statement s = BdD.getStatement();
 		try {
-			s.execute("DELETE FROM lieu WHERE id="+this.libelle+";");
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Lieu, Niveau2.ajouter,
+					new JSONArray(new String[]{libelle}));
+			if(r.estOK())
+				return r.getCorps().getBoolean("ajoutOK");
+		} catch (JSONException e) {e.printStackTrace();}
+		return false;
 	}
 	
-	public ArrayList<Lieu> selectLieuxJK(JeanKevin jk){
-		ArrayList<Lieu> list = new ArrayList<Lieu>();
-		return list;
-	}
 	
-	public String getLibelle() {
-		return this.libelle;
-	}
-
-	public void updateLibelle(String libelle) {
-		this.libelle = libelle;Statement s = BdD.getStatement();
-		try {
-			s.execute("UPDATE lieu SET libelle='"+this.libelle+"' WHERE id="+this.id+";");
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+	/**
+	 * Supprime la carte de la base de données
+	 * @return
+	 */
+	public boolean supprimer(){
 		
+		ReponseServeur r;
+		try {
+			r = RequeteServeur.executerRequete(Niveau1.Lieu, Niveau2.supprimer,
+					new JSONArray(new int[]{this.id}));
+			if(r.estOK())
+				return r.getCorps().getBoolean("supprOK");
+		} 
+		catch (JSONException e) {e.printStackTrace();}
+		return false;
+	}
+	
+	/**
+	 * Selectionne l'ensemble des lieux auxquels JK est inscrit
+	 * @param jk le Jean-Kévin dont on cherche les lieux
+	 * @return une ArrayList de Lieux ou null en cas de problèmes
+	 */
+	public ArrayList<Lieu> selectionnerLieuxJK(JeanKevin jk){
+		
+		try{
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Lieu, Niveau2.selectionnerLieuxJK, 
+					new JSONArray(new String[]{jk.getIdentifiant()}));
+			if(r.estOK()){
+				JSONArray lieux = r.getCorps().getJSONArray("lieux");
+				ArrayList<Lieu> list = new ArrayList<Lieu>();
+				for (int i=0; i < lieux.length(); i++) {
+					list.add(new Lieu(lieux.getJSONObject(i).getInt("id"),
+							lieux.getJSONObject(i).getString("libelle")));
+				}
+			}
+		}
+		catch (JSONException e) {e.printStackTrace();}
+		return null;
+	}
+	
+	/**
+	 * 
+	 * @param libelle
+	 * @return
+	 */
+	public boolean modifierLibelle(String libelle) {
+		
+		try{
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Lieu, Niveau2.modifier, 
+					new JSONArray(new String[]{""+this.id, libelle}));
+			if(r.estOK() && r.getCorps().getBoolean("modifOK")){
+				this.libelle = libelle;
+				return true;
+			}
+		}
+		catch (JSONException e) {e.printStackTrace();}
+		return false;
 	}
 
 	public int getId() {
 		return this.id;
+	}
+	
+	public String getLibelle(){
+		return this.libelle;
 	}
 	
 	
