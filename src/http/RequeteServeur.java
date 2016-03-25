@@ -40,13 +40,20 @@ public abstract class RequeteServeur {
 	private static URL					url			= null;
 	private static HttpURLConnection 	connection	= null;
 	
-	//Enumérations des deux niveaux de requête
+	/**
+	 * Correspond aux classes apellables sur le serveur
+	 * @author JK
+	 */
 	public static enum Niveau1 {
 		JeanKevin,
 		Amitie,
 		Lieu,
 		Image
 	}
+	/**
+	 * Correspond aux noms des méthodes appellées sur le serveur
+	 * @author JK
+	 */
 	public static enum Niveau2 {
 		accepter,
 		ajouter,
@@ -65,6 +72,10 @@ public abstract class RequeteServeur {
 		selectionnerNoms,
 		supprimer,
 	}
+	/**
+	 * Niveau à utiliser pour interagir avec les images
+	 * @author JK
+	 */
 	public static enum NivImg {
 		Avatar,
 		Carte,
@@ -104,7 +115,7 @@ public abstract class RequeteServeur {
 		
 		//Lancement de la connexion
 		fermerConnexion();
-		if(url == null) lancerConnexion();
+		lancerConnexion();
 		
 		//Création de la requête post
 		String post = "JSON="+requete.toString();

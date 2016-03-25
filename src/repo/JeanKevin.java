@@ -76,8 +76,11 @@ public class JeanKevin {
 		try {
 			JSONArray params = new JSONArray(new String[]{identifiant, mdp});
 			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.connecter, params);
+			System.out.println(r.estOK() +" ");
 			if(r.estOK() && r.getCorps().getBoolean("connecte") && r.getCorps().getBoolean("actif")){
-				return selectionner(identifiant);
+				JSONObject jk = r.getCorps().getJSONObject("jk");
+				return  new JeanKevin(jk.getString("nom"), jk.getString("prenom"),
+						jk.getString("identifiant"), null);
 			} else {System.out.println(r);}
 		} catch (JSONException e) {e.printStackTrace();}
 		return null;
@@ -146,6 +149,7 @@ public class JeanKevin {
 	 */
 	public static ArrayList<JeanKevin> rechercher(String motsCles){
 		try{
+			//ReponseServeur reponse = new ;
 			//On parse les mots clés en les séparatns à chaque espace
 			String[] mots = motsCles.split(" ");
 			JSONArray jks = new JSONArray();
