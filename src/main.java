@@ -2,6 +2,8 @@
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Iterator;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -16,15 +18,12 @@ import repo.JeanKevin;
 
 public class main {
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
 		
-		try {
-			
-			System.out.println(RequeteServeur.executerRequete(Niveau1.Lieu, Niveau2.selectionner, 
-					new JSONArray(new String[]{"3"})));
-			
-		} 
-		catch (JSONException e) {e.printStackTrace();
+		HashSet<JeanKevin> s = JeanKevin.rechercher("pren");
+		Iterator<JeanKevin> i = s.iterator();
+		while(i.hasNext()){
+			System.out.println(i.next());
 		}
 		
 	}

@@ -2,6 +2,7 @@ package repo;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -29,13 +30,17 @@ public class JeanKevin {
 			-- CONSTRUCTEURS --
 			------------------*/
 	
-	private JeanKevin(String nom, String prenom, String identifiant, String mail) {
+	public JeanKevin(String nom, String prenom, String identifiant, String mail) {
 		this.nom = nom;
 		this.prenom = prenom;
 		this.identifiant = identifiant;
 		this.mail = mail;
 	}
 	
+	
+	/*----------------------
+	-- METHODES DE CLASSE --
+	-----------------------*/
 	
 	/**
 	 * Retourne un objet JeanKevin à partir d'un objet JSON
@@ -143,24 +148,34 @@ public class JeanKevin {
 	
 	
 	/**
-	 * 
-	 * @param motCle
-	 * @return
+	 * Effectue une recherche parmi les JK enregistrés dans la base de données
+	 * @param motCles La chaine de carractère de recherche
+	 * @return un HashSet contenant tous les résultats, ou null en cas de problème
 	 */
-	public static ArrayList<JeanKevin> rechercher(String motsCles){
+	public static HashSet<JeanKevin> rechercher(String motsCles){
 		try{
 			//ReponseServeur reponse = new ;
 			//On parse les mots clés en les séparatns à chaque espace
 			String[] mots = motsCles.split(" ");
-			JSONArray jks = new JSONArray();
+			HashSet<JeanKevin> jks = new HashSet<JeanKevin>();
 			//Pour chaque mot clé récupéré on fait une recherche
 			for(String mot : mots){
 				ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.rechercher,
 						new JSONArray(new String[]{mot}));
 				if(r.estOK()){
-					jks.put(r.getCorps());
+					//On récupère un à un les résultats et on les ajoute dans la liste s'ils n'y sont pas
+					JSONArray resultats = r.getCorps().getJSONArray("resultats");
+					for(int i=0; i<resultats.length(); i++){
+						JSONObject res = resultats.getJSONObject(i);
+						jks.add(new JeanKevin(res.getString("nom"), res.getString("prenom"),
+								res.getString("identifiant"), res.getString("mail")));
+					}
+				}
+				else {
+					break;
 				}
 			}
+			return jks;
 		} catch (JSONException e){e.printStackTrace();}
 		
 		return null;
@@ -313,5 +328,39 @@ public class JeanKevin {
 	public String toString() {
 		return prenom  +" "+ nom + " login : " + identifiant;
 	}
+
+
+		/***************************
+		**    EQUALS & HASHCODE   **
+		****************************/
+	
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result
+				+ ((identifiant == null) ? 0 : identifiant.hashCode());
+		return result;
+	}
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		JeanKevin other = (JeanKevin) obj;
+		if (identifiant == null) {
+			if (other.identifiant != null)
+				return false;
+		} else if (!identifiant.equals(other.identifiant))
+			return false;
+		return true;
+	}
+	
+	
+	
+	
 	
 }
