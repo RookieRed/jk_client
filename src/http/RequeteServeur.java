@@ -31,8 +31,8 @@ import org.json.JSONObject;
 public abstract class RequeteServeur {
 	
 	//Données de connexion serveur
-	private static final String cible		= "/api.php";
-	private static final String serveur		= "jean-kevin.com";
+	private static final String cible		= "/jk/api.php";
+	private static final String serveur		= "localhost";
 	private static final int portServeurImg = 9997;
 	private static final int tailleBfr      = 2048;
 	
@@ -78,31 +78,9 @@ public abstract class RequeteServeur {
 	 */
 	public static enum NivImg {
 		Avatar,
-		Carte,
-		Image
+		Carte
 	}
 	
-	
-	/**
-	 * Instancie la connexion au serveur
-	 */
-	public static void lancerConnexion(){
-		if(url == null){
-			try {
-				url = new URL("http://"+serveur+cible);
-				connection = (HttpURLConnection) url.openConnection();
-			} catch (IOException e) {e.printStackTrace();}
-		}
-	}
-	
-	/**
-	 * Ferme la connexion au serveur.
-	 * A n'utiliser qu'à la fin de la session pour éviter de réouvrir une session (gain de temps)
-	 */
-	public static void fermerConnexion(){
-		if (connection != null) connection.disconnect();
-		url = null;
-	}
 	
 	/**
 	 * Permet d'envoyer une requête HTTP formatée pour le serveur
@@ -114,8 +92,9 @@ public abstract class RequeteServeur {
 			throws JSONException, IOException{
 		
 		//Lancement de la connexion
-		fermerConnexion();
-		lancerConnexion();
+		if (connection != null) connection.disconnect();
+		url = new URL("http://"+serveur+cible);
+		connection = (HttpURLConnection) url.openConnection();
 		
 		//Création de la requête post
 		String post = "JSON="+requete.toString();
@@ -304,25 +283,23 @@ public abstract class RequeteServeur {
 		return null;
 	}
 	
+	
 	/**
 	 * Permet de recevoir une image stockée sur le serveur tel un avatar de JK ou une carte d'un lieu
-	 * @param niv peut prendre la valeur "Carte" (reçoit la carte d'un lieu) ou "Avatar" (reçoit l'vatar d'un JK)
-	 * @param params les paramètres de la méthode à appeler. Peut être null
-	 * @param img l'handler qui donnera accès à l'image reçue
-	 * @param r l'objet réponse serveur qui sera renvoyé
-	 * @return un objet RéponseServeur ou null en cas d'erreur
+	 * @param img le handler sur l'image qui sera crée.
+	 * @param params les paramètres de la fonction. Doit contenir un nom d'image ainsi qu'un id (de lieu ou de JK)
+	 * @return l'objet réponse serveur ou null en cas de problèmes
 	 */
-	public static File recevoirImage(NivImg niv, String path, JSONArray params, ReponseServeur r){
+	public static ReponseServeur recevoirImage(File img, JSONArray params){
 		
 		try {
 			final ReponseServeur rep = new ReponseServeur(false);
-			File img = new File(path);
 			
 			//Envoie de la requete
 			JSONObject req = new JSONObject();
 			req.put("niv_1", "Image");
-			req.put("niv_2", "selectionner"+((niv==NivImg.Avatar)?niv:""));
-			req.put("param", (params==null)?new JSONArray():params);
+			req.put("niv_2", "selectionner");
+			req.put("param", params);
 			envoyerRequete(req);
 			
 			Thread com = Thread.currentThread();
@@ -360,14 +337,14 @@ public abstract class RequeteServeur {
 					return null;
 				}
 				com.wait();
-				r = rep;
-				return img;
+				return rep;
 			}
 			
 		} catch (JSONException | IOException | InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		img.delete();
 		return null;
 	}
 	

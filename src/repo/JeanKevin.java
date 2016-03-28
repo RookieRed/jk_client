@@ -64,7 +64,7 @@ public class JeanKevin {
 		try {
 			JSONArray params = new JSONArray(new String[]{identifiant});
 			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.existe, params);
-			if(r.estOK()){
+			if(r != null && r.estOK()){
 				return r.getCorps().getBoolean("existe");
 			}
 		} catch (JSONException e) {e.printStackTrace();}
@@ -82,11 +82,11 @@ public class JeanKevin {
 			JSONArray params = new JSONArray(new String[]{identifiant, mdp});
 			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.connecter, params);
 			System.out.println(r.estOK() +" ");
-			if(r.estOK() && r.getCorps().getBoolean("connecte") && r.getCorps().getBoolean("actif")){
+			if(r != null && r.estOK() && r.getCorps().getBoolean("connecte") && r.getCorps().getBoolean("actif")){
 				JSONObject jk = r.getCorps().getJSONObject("jk");
 				return  new JeanKevin(jk.getString("nom"), jk.getString("prenom"),
 						jk.getString("identifiant"), null);
-			} else {System.out.println(r);}
+			} 
 		} catch (JSONException e) {e.printStackTrace();}
 		return null;
 	}
@@ -102,9 +102,9 @@ public class JeanKevin {
 		try {
 			JSONArray params = new JSONArray(new String[]{nom, prenom, identifiant, psw, mail});
 			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.preinscrire, params);
-			if(r.estOK()){
+			if(r != null && r.estOK()){
 				return (r.getCorps().getBoolean("inscriptionOK") && r.getCorps().getBoolean("mailOK"));
-			} else {System.out.println(r);}
+			} 
 		} catch (JSONException e) {e.printStackTrace();}
 		return false;
 	}
@@ -119,10 +119,8 @@ public class JeanKevin {
 		try {
 			JSONArray params = new JSONArray(new String[]{identifiant});
 			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.selectionner, params);
-			if(r.estOK()){
+			if(r != null && r.estOK()){
 				return parseJSON(r.getCorps().getJSONObject("jk"));
-			} else {
-				System.out.println(r);
 			}
 		} catch (JSONException e) {e.printStackTrace();}
 		return null;
@@ -137,10 +135,8 @@ public class JeanKevin {
 		try {
 			JSONArray params = new JSONArray(new String[]{this.identifiant, jean_kevin2.getIdentifiant()});
 			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Amitie, Niveau2.ajouter, params);
-			if(r.estOK()){
+			if(r != null && r.estOK()){
 				return r.getCorps().getBoolean("ajoutOK");
-			} else {
-				System.out.println(r);
 			}
 		} catch (Exception e) {e.printStackTrace();}
 		return false;
@@ -162,7 +158,7 @@ public class JeanKevin {
 			for(String mot : mots){
 				ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.rechercher,
 						new JSONArray(new String[]{mot}));
-				if(r.estOK()){
+				if(r != null && r.estOK()){
 					//On récupère un à un les résultats et on les ajoute dans la liste s'ils n'y sont pas
 					JSONArray resultats = r.getCorps().getJSONArray("resultats");
 					for(int i=0; i<resultats.length(); i++){
@@ -189,23 +185,13 @@ public class JeanKevin {
 		try {
 			JSONArray params = new JSONArray(new String[]{this.identifiant});
 			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.supprimer, params);
-			if(r.estOK()){
+			if(r != null && r.estOK()){
 				return r.getCorps().getBoolean("suprOK");
-			} else {
-				System.out.println(r);
 			}
 		}
 		catch (JSONException e){e.printStackTrace();}
 		return false;
 	}
-
-	
-//	public void donnerPosition(int x, int y, int lieu){
-//		try {
-//			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, niv2, params)
-//		} catch (SQLException e) { e.printStackTrace(); }
-//	}
-	
 	
 	/**
 	 * Permet de modifier les inforamtions personnelles de Jean-Kévin
@@ -217,8 +203,7 @@ public class JeanKevin {
 		try{
 			JSONArray params = new JSONArray(new String[]{this.identifiant, nom, prenom});
 			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.modifier, params);
-			if(!r.estOK()){
-				System.out.println(r);
+			if(r!= null && !r.estOK()){
 				return false;
 			}
 			return r.estOK() && r.getCorps().getBoolean("modif");
@@ -237,9 +222,9 @@ public class JeanKevin {
 		try{
 			JSONArray params = new JSONArray(new String[]{this.identifiant, mail});
 			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.modifierMail, params);
-			if(r.estOK()){
+			if(r != null && r.estOK()){
 				return r.getCorps().getBoolean("modifMail") && r.getCorps().getBoolean("mailOK");
-			} else {System.out.println(r);}
+			} 
 		} catch(JSONException e) {e.printStackTrace();}
 		return false;
 	}
@@ -254,9 +239,9 @@ public class JeanKevin {
 		try{
 			JSONArray params = new JSONArray(new String[]{this.identifiant});
 			ReponseServeur r = RequeteServeur.transfererImage(img, NivImg.Avatar, params);
-			if(r.estOK()){
+			if(r!=null && r.estOK()){
 				return r.getCorps().getBoolean("finCommuncation") && r.getCorps().getBoolean("ajoutBD");
-			} else {System.out.println(r);}
+			}
 		} catch (JSONException e){ e.printStackTrace();}
 		return false;
 	}
@@ -270,11 +255,16 @@ public class JeanKevin {
 		try{
 			JSONArray params = new JSONArray(new String[]{this.identifiant, nomImage});
 			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.JeanKevin, Niveau2.definirPhotoProfile, params);
-			if(r.estOK()){
+			if(r != null && r.estOK()){
 				return r.getCorps().getBoolean("modifPP");
-			} else {System.out.println(r);}
+			} 
 		} catch (JSONException e){ e.printStackTrace();}
 		return false;
+	}
+	
+	public File selectionnerAvatar(){
+		
+		return null;
 	}
 	
 	/**
@@ -282,20 +272,19 @@ public class JeanKevin {
 	 * et les retourne dans une ArrayList
 	 * @return un ArrayList contenant tous les avatars enregistrés ou null en cas de problème
 	 */
-	@SuppressWarnings("unused")
 	public ArrayList<File> selectionnerTousAvatars(){
 		try{
 			//On récupère l'ensemble des noms d'avatars 
 			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Image, Niveau2.selectionnerNoms,
 					new JSONArray(new String[]{this.identifiant}));
-			if(r.estOK()){
+			if(r != null && r.estOK()){
 				JSONArray noms = r.getCorps().getJSONArray("chemins");
-				ArrayList<File> ret = new ArrayList<>();
+				ArrayList<File> ret = new ArrayList<File>();
 				//On récupère tous les avatars correspondants
 				for (int i = 0; i < noms.length(); i++) {
-					ReponseServeur rep = null;
-					File img = RequeteServeur.recevoirImage(NivImg.Avatar, noms.getString(i),
-							new JSONArray(new String[]{this.identifiant}), rep);
+					File img = new File(noms.getString(i));
+					ReponseServeur rep = RequeteServeur.recevoirImage(img, new JSONArray(new String[]{
+							this.identifiant, noms.getString(i)}));
 					if(rep != null && rep.estOK()){
 						ret.add(img);
 					}

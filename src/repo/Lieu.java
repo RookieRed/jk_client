@@ -2,9 +2,11 @@ package repo;
 
 import http.ReponseServeur;
 import http.RequeteServeur;
+import http.RequeteServeur.NivImg;
 import http.RequeteServeur.Niveau1;
 import http.RequeteServeur.Niveau2;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 
@@ -24,15 +26,17 @@ public class Lieu {
 	
 	private int id;
 	private String libelle;
+	private String ville;
 	
 	
 		/*-----------------
 		-- CONSTRUCTEURS --
 		------------------*/
 	
-	private Lieu(int id, String libelle) {
+	private Lieu(int id, String libelle, String ville) {
 		this.id = id;
 		this.libelle = libelle;
+		this.ville = ville;
 	}
 	
 
@@ -56,6 +60,19 @@ public class Lieu {
 		return false;
 	}
 	
+
+	public static Lieu selection(int id) {
+
+		try {
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Lieu, Niveau2.selectionner,
+					new JSONArray(new int[]{id}));
+			if(r.estOK()){
+				JSONObject lieu = r.getCorps().getJSONObject("lieu");
+				return new Lieu(id, lieu.getString("libelle"), lieu.getString("ville"));
+			}
+		} catch (JSONException e) {e.printStackTrace();}
+		return null;
+	}
 	
 	/**
 	 * Supprime la carte de la base de données
@@ -89,7 +106,8 @@ public class Lieu {
 				ArrayList<Lieu> list = new ArrayList<Lieu>();
 				for (int i=0; i < lieux.length(); i++) {
 					list.add(new Lieu(lieux.getJSONObject(i).getInt("id"),
-							lieux.getJSONObject(i).getString("libelle")));
+							lieux.getJSONObject(i).getString("libelle"),
+							lieux.getJSONObject(i).getString("ville")));
 				}
 			}
 		}
@@ -136,26 +154,40 @@ public class Lieu {
 	public static HashSet<Lieu> rechercher(String motCles){
 
 		try{
-			String[] mots = motCles.split(" ");
 			HashSet<Lieu> ret = new HashSet<Lieu>();
-			for (String mot : mots) {
-				ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Lieu, Niveau2.rechercher,
-						new JSONArray(new String[]{mot}));
-				if(!r.estOK()){
-					ret = null;
-					break;
-				}
-				JSONArray lieux = r.getCorps().getJSONArray("resultats");
-				for(int i=0; i<lieux.length(); i++){
-					JSONObject lieu = lieux.getJSONObject(i);
-					ret.add(new Lieu(lieu.getInt("id"), lieu.getString("libelle")));
-				}
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Lieu, Niveau2.rechercher,
+					new JSONArray(new String[]{motCles}));
+			if(!r.estOK()){
+				return null;
+			}
+			JSONArray lieux = r.getCorps().getJSONArray("resultats");
+			for(int i=0; i<lieux.length(); i++){
+				JSONObject lieu = lieux.getJSONObject(i);
+				ret.add(new Lieu(lieu.getInt("id"), lieu.getString("libelle"),
+						lieu.getString("ville")));
 			}
 			return ret;
 		}
 		catch(JSONException e){e.printStackTrace();}
 		
 		return null;
+	}
+	
+	/**
+	 * Enregistre une nouvelle carte à un lieu choisi
+	 * @param img
+	 * @return
+	 */
+	public boolean ajouterCarte(File img){
+		
+		try {
+			ReponseServeur r = RequeteServeur.transfererImage(img, NivImg.Carte, 
+					new JSONArray(new String[]{""+this.id, img.getName()}));
+			if(r == null || !r.estOK()) return false;
+			return r.getCorps().getBoolean("finTransfert");
+		}
+		catch (JSONException e) {e.printStackTrace();}
+		return false;
 	}
 	
 	
@@ -169,9 +201,12 @@ public class Lieu {
 	public String getLibelle(){
 		return this.libelle;
 	}
+	public String getVille(){
+		return this.ville;
+	}
 	@Override
 	public String toString() {
-		return "Lieu N° " +this.id +" - " + this.libelle;
+		return "Lieu N° " +this.id +" - " + this.libelle + " à " + this.ville;
 	}
 
 
@@ -200,5 +235,6 @@ public class Lieu {
 			return false;
 		return true;
 	}
+
 	
 }

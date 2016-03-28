@@ -15,15 +15,15 @@ import http.RequeteServeur.NivImg;
 import http.RequeteServeur.Niveau1;
 import http.RequeteServeur.Niveau2;
 import repo.JeanKevin;
+import repo.Lieu;
 
 public class main {
 
 	public static void main(String[] args) throws Exception {
 		
-		HashSet<JeanKevin> s = JeanKevin.rechercher("pren");
-		Iterator<JeanKevin> i = s.iterator();
-		while(i.hasNext()){
-			System.out.println(i.next());
+		Lieu l = Lieu.selection(3);
+		if(l!=null){
+			l.supprimer();
 		}
 		
 	}
