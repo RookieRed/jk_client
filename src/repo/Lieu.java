@@ -33,7 +33,7 @@ public class Lieu {
 		-- CONSTRUCTEURS --
 		------------------*/
 	
-	private Lieu(int id, String libelle, String ville) {
+	protected Lieu(int id, String libelle, String ville) {
 		this.id = id;
 		this.libelle = libelle;
 		this.ville = ville;
@@ -60,13 +60,16 @@ public class Lieu {
 		return false;
 	}
 	
-
-	public static Lieu selection(int id) {
-
+	/**
+	 * Sélectionne un lieu dans la base de données et retourne l'objet correspondant
+	 * @param id l'id du lieu recherché
+	 * @return un objet Lieu ou null en cas de problèmes
+	 */
+	public static Lieu selectionner(int id) {
 		try {
 			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Lieu, Niveau2.selectionner,
 					new JSONArray(new int[]{id}));
-			if(r.estOK()){
+			if(r!= null && r.estOK()){
 				JSONObject lieu = r.getCorps().getJSONObject("lieu");
 				return new Lieu(id, lieu.getString("libelle"), lieu.getString("ville"));
 			}
@@ -91,29 +94,6 @@ public class Lieu {
 		return false;
 	}
 	
-	/**
-	 * Selectionne l'ensemble des lieux auxquels JK est inscrit
-	 * @param jk le Jean-Kévin dont on cherche les lieux
-	 * @return une ArrayList de Lieux ou null en cas de problèmes
-	 */
-	public ArrayList<Lieu> selectionnerLieuxJK(JeanKevin jk){
-		
-		try{
-			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Lieu, Niveau2.selectionnerLieuxJK, 
-					new JSONArray(new String[]{jk.getIdentifiant()}));
-			if(r.estOK()){
-				JSONArray lieux = r.getCorps().getJSONArray("lieux");
-				ArrayList<Lieu> list = new ArrayList<Lieu>();
-				for (int i=0; i < lieux.length(); i++) {
-					list.add(new Lieu(lieux.getJSONObject(i).getInt("id"),
-							lieux.getJSONObject(i).getString("libelle"),
-							lieux.getJSONObject(i).getString("ville")));
-				}
-			}
-		}
-		catch (JSONException e) {e.printStackTrace();}
-		return null;
-	}
 	
 	/**
 	 * Modifie le nom associé à un lieu dans la base de données
@@ -134,22 +114,10 @@ public class Lieu {
 		return false;
 	}
 	
-	//TODO
-	public boolean ajouterLieuJK(JeanKevin jk){
-		
-//		try{
-//			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Lieu, Niveau2.rechercher,
-//					new JSONArray(new String[]{}));
-//		}
-//		catch(JSONException e){e.printStackTrace();}
-		
-		return false;
-	}
-	
 	/**
 	 * Effectue une recherche dans les lieux enregistré dans la base de données
-	 * @param motCles
-	 * @return
+	 * @param motCles les mots associés à la recherche
+	 * @return un HashSet contenant les lieux correspondants ou null en cas de problème
 	 */
 	public static HashSet<Lieu> rechercher(String motCles){
 
@@ -175,8 +143,8 @@ public class Lieu {
 	
 	/**
 	 * Enregistre une nouvelle carte à un lieu choisi
-	 * @param img
-	 * @return
+	 * @param img le fichier image de la carte du lieu
+	 * @return vrai en cas de succès faux sinon
 	 */
 	public boolean ajouterCarte(File img){
 		

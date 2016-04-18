@@ -30,7 +30,7 @@ public class JeanKevin {
 			-- CONSTRUCTEURS --
 			------------------*/
 	
-	public JeanKevin(String nom, String prenom, String identifiant, String mail) {
+	private JeanKevin(String nom, String prenom, String identifiant, String mail) {
 		this.nom = nom;
 		this.prenom = prenom;
 		this.identifiant = identifiant;
@@ -150,8 +150,7 @@ public class JeanKevin {
 	 */
 	public static HashSet<JeanKevin> rechercher(String motsCles){
 		try{
-			//ReponseServeur reponse = new ;
-			//On parse les mots clés en les séparatns à chaque espace
+			//On parse les mots clés en les séparant à chaque espace
 			String[] mots = motsCles.split(" ");
 			HashSet<JeanKevin> jks = new HashSet<JeanKevin>();
 			//Pour chaque mot clé récupéré on fait une recherche
@@ -167,9 +166,7 @@ public class JeanKevin {
 								res.getString("identifiant"), res.getString("mail")));
 					}
 				}
-				else {
-					break;
-				}
+				else { break; }
 			}
 			return jks;
 		} catch (JSONException e){e.printStackTrace();}
@@ -295,6 +292,69 @@ public class JeanKevin {
 		return null;
 	}
 	
+	/**
+	 * Inscrit Jean-Kévin à un lieu enregistré
+	 * @param lieu le lieu auquel JK souhaite s'inscrire
+	 * @return vrai en cas de succès faux sinon
+	 */
+	public boolean ajouterLieuJK(Lieu lieu){
+		
+		try{
+			JSONArray params = new JSONArray();
+			params.put(lieu.getId());
+			params.put(this.identifiant);
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Lieu, Niveau2.ajouterLieuJK, params);
+			if(r != null && r.estOK()){
+				return r.getCorps().getBoolean("ajoutLienOK");
+			}
+		}
+		catch(JSONException e){e.printStackTrace();}
+		
+		return false;
+	}
+	
+	
+	/**
+	 * Selectionne l'ensemble des lieux auxquels JK est inscrit
+	 * @return une ArrayList de Lieux ou null en cas de problèmes
+	 */
+	public ArrayList<Lieu> selectionnerLieuxJK(){
+		
+		try{
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Lieu, Niveau2.selectionnerLieuxJK, 
+					new JSONArray(new String[]{this.identifiant}));
+			if(r.estOK()){
+				JSONArray lieux = r.getCorps().getJSONArray("lieux");
+				ArrayList<Lieu> list = new ArrayList<Lieu>();
+				for (int i=0; i < lieux.length(); i++) {
+					list.add(new Lieu(lieux.getJSONObject(i).getInt("id"),
+							lieux.getJSONObject(i).getString("libelle"),
+							lieux.getJSONObject(i).getString("ville")));
+				}
+			}
+		}
+		catch (JSONException e) {e.printStackTrace();}
+		return null;
+	}
+
+	/**
+	 * Désincrit Jean-Kévin d'un lieu auquel il était précédemment inscrit
+	 * @param lieu le lieu dont JK veut se désinscrire
+	 * @return vrai en cas de succès faux sinon
+	 */
+	public boolean supprimerLieuJK(Lieu lieu){
+		try{
+			JSONArray params = new JSONArray();
+			params.put(lieu.getId());
+			params.put(this.identifiant);
+			ReponseServeur r = RequeteServeur.executerRequete(Niveau1.Lieu, Niveau2.supprimerLieuJK, params);
+			if(r != null && r.estOK()){
+				return r.getCorps().getBoolean("suppressionOK");
+			}
+		}
+		catch(JSONException e){e.printStackTrace();}
+		return false;
+	}
 
 		/********************
 		**     GETTERS     **
@@ -347,9 +407,6 @@ public class JeanKevin {
 			return false;
 		return true;
 	}
-	
-	
-	
 	
 	
 }

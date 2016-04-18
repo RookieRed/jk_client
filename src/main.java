@@ -21,10 +21,7 @@ public class main {
 
 	public static void main(String[] args) throws Exception {
 		
-		Lieu l = Lieu.selection(3);
-		if(l!=null){
-			l.supprimer();
-		}
+		JeanKevin jk = JeanKevin.selectionner("jk1");
 		
 	}
 

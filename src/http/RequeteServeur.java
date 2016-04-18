@@ -31,8 +31,8 @@ import org.json.JSONObject;
 public abstract class RequeteServeur {
 	
 	//Données de connexion serveur
-	private static final String cible		= "/jk/api.php";
-	private static final String serveur		= "localhost";
+	private static final String cible		= "/api.php";
+	private static final String serveur		= "jean-kevin.com";
 	private static final int portServeurImg = 9997;
 	private static final int tailleBfr      = 2048;
 	
@@ -45,10 +45,11 @@ public abstract class RequeteServeur {
 	 * @author JK
 	 */
 	public static enum Niveau1 {
-		JeanKevin,
 		Amitie,
+		Image,
+		JeanKevin,
 		Lieu,
-		Image
+		Position
 	}
 	/**
 	 * Correspond aux noms des méthodes appellées sur le serveur
@@ -57,6 +58,7 @@ public abstract class RequeteServeur {
 	public static enum Niveau2 {
 		accepter,
 		ajouter,
+		ajouterLieuJK,
 		connecter,
 		definirPhotoProfile,
 		estEffective,
@@ -71,6 +73,7 @@ public abstract class RequeteServeur {
 		selectionnerLieuxJK,
 		selectionnerNoms,
 		supprimer,
+		supprimerLieuJK,
 	}
 	/**
 	 * Niveau à utiliser pour interagir avec les images
