@@ -18,7 +18,7 @@ public class Position {
 			------------------*/
 
 	public Position() {
-		this.dateTime = new Date(date);
+		this.dateTime = null;
 	}
 
 
